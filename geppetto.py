@@ -12,7 +12,7 @@ import datetime
 import plotly.graph_objects as go
 
 
-class Adventure():
+class Geppetto():
 
     def __init__(self, gpx_file):
         gpx = gpxpy.parse(open(gpx_file, 'r'))
@@ -160,7 +160,7 @@ class Adventure():
 
     def gradient(self, interval, resolution=500):
 
-        df_climb = self.df[['dist_geo2d', 'elev']]
+        df_climb = self.df[['lon', 'lat', 'dist_geo2d', 'elev']]
         df_climb = df_climb[(df_climb["dist_geo2d"] >= interval[0]) & (df_climb["dist_geo2d"] <= interval[1])]
         df_climb['dist_geo2d_neg'] = -(df_climb["dist_geo2d"].iloc[-1] - df_climb["dist_geo2d"])
 
@@ -200,27 +200,32 @@ class Adventure():
         fig.show()
         '''
 
-        fig = go.Figure()
+        fig_gradient = go.Figure()
         steps = np.flip(steps)
         for i in range(len(steps) - 1):
             portion = df_climb[(df_climb['dist_geo2d_neg'] >= steps[i]) & (df_climb['dist_geo2d_neg'] <= steps[i + 1])]
             g = df_gradient['gradient'].iloc[i]
-            fig.add_trace(
+            fig_gradient.add_trace(
                 go.Scatter(x=portion['dist_geo2d_neg'], y=portion['elev'], fill='tozeroy', fillcolor=self.colorscale(g),
                            mode='none', name='', showlegend=False))
-            fig.add_annotation(x=np.mean(portion['dist_geo2d_neg']), y=np.max(portion['elev']) + 10,
-                               text="{:.1f}%".format(g),
-                               showarrow=False,
-                               arrowhead=1)
-        fig.show()
+            fig_gradient.add_annotation(x=np.mean(portion['dist_geo2d_neg']), y=np.max(portion['elev']) + 10,
+                                        text="{:.1f}%".format(g),
+                                        showarrow=False,
+                                        arrowhead=1)
+        fig_gradient.show()
+
+        if 1:
+            fig_map = px.line_mapbox(df_climb, lat='lat', lon='lon', hover_name='dist_geo2d_neg', mapbox_style="open-street-map",
+                                     zoom=11)
+            fig_map.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+            fig_map.show()
 
 
-# alpe = Adventure("tracks/The_missing_pass_W3_D2_.gpx")
-# alpe.gradient(interval=[33739, 48124])
+alpe = Geppetto("tracks/The_missing_pass_W3_D2_.gpx")
+alpe.gradient(interval=[33739, 48124])
 
-# arcana = Adventure("tracks/Local_passes_gravel_edition_.gpx")
+# arcana = Geppetto("tracks/Local_passes_gravel_edition_.gpx")
 # arcana.gradient(interval=[25510, 41000], resolution=1000)
 
-cirone = Adventure("tracks/Cisa_e_Cirone.gpx")
-cirone.gradient(interval=[62380, 76542], resolution=500)
-
+# cirone = Geppetto("tracks/Cisa_e_Cirone.gpx")
+# cirone.gradient(interval=[62380, 76542], resolution=500)
