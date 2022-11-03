@@ -20,6 +20,8 @@ from math import sqrt, floor
 import datetime
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from scipy.constants import g, R, atm
+from itertools import product
 
 
 class Geppetto():
@@ -46,11 +48,11 @@ class Geppetto():
                 for ext in point.extensions:
                     for extchild in list(ext):
                         if extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}atemp":
-                            atemp = int(extchild.text)
+                            atemp = float(extchild.text)
                         elif extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}hr":
-                            hr = int(extchild.text)
+                            hr = float(extchild.text)
                         elif extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}cad":
-                            cad = int(extchild.text)
+                            cad = float(extchild.text)
                 # Add data to the df
                 df = pd.concat([df, pd.DataFrame(data={'lon': point.longitude,
                                                        'lat': point.latitude,
@@ -147,6 +149,11 @@ class Geppetto():
 
             # Speed
             df['inst_mps'] = df['delta_geo3d'] / df['delta_time']
+
+            # Remove absurd outliers
+            df = df[df['inst_mps'] < 80.0/3.6]
+
+            # Check and fill nan's
             if df.isna().sum().sum() > 1:
                 print("Warning: too many NaN's")
             df.fillna(0, inplace=True)
@@ -179,9 +186,14 @@ class Geppetto():
                                 template='plotly_dark')
                 fig_5.show()
 
-            if 1:
-                fig_5 = px.scatter(df, x='inst_mps', y='cad')
+            if debug_plots:
+                fig_5 = px.scatter(df, x='inst_mps', y='cad', color='hr')
                 fig_5.show()
+
+            if debug_plots:
+                fig_4 = px.histogram(df, x='cad', template='plotly_dark')
+                fig_4.update_traces(xbins=dict(start=10, end=120, size=1))
+                fig_4.show()
 
             # Once done, take the current df (local) and append it to the list of df's
             print()
@@ -247,8 +259,13 @@ class Geppetto():
         """
 
         # Select only the points belonging to the climb
+        assert interval[0] >= 0
+        assert interval[1] >= 0
         df_climb = self.df[trace_nr][['lon', 'lat', 'dist_geo2d', 'elev']].copy()
-        df_climb = df_climb[(df_climb["dist_geo2d"] >= interval[0]) & (df_climb["dist_geo2d"] <= interval[1])]
+        if interval[1] == 0:
+            df_climb = df_climb[df_climb["dist_geo2d"] >= interval[0]]
+        else:
+            df_climb = df_climb[(df_climb["dist_geo2d"] >= interval[0]) & (df_climb["dist_geo2d"] <= interval[1])]
         df_climb['dist_geo2d_neg'] = -(df_climb["dist_geo2d"].iloc[-1] - df_climb["dist_geo2d"])
 
         steps = np.arange(0, np.min(df_climb['dist_geo2d_neg']), -resolution)
@@ -371,6 +388,143 @@ class Geppetto():
 
             fig.show()
 
+    def cadence_speed_curve(self, interval, trace_nr=0):
+        """
+        This method operates on only one trace
+        :param interval: [start_meter, end_meter]
+        :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
+        :return: plots
+        """
+
+        # Select only the points belonging to the climb
+        assert interval[0] >= 0
+        assert interval[1] >= 0
+        df_climb = self.df[trace_nr][['lon', 'lat', 'dist_geo2d', 'elev', 'cad', 'inst_mps', 'hr']].copy()
+        if interval[1] == 0:
+            df_climb = df_climb[df_climb["dist_geo2d"] >= interval[0]]
+        else:
+            df_climb = df_climb[(df_climb["dist_geo2d"] >= interval[0]) & (df_climb["dist_geo2d"] <= interval[1])]
+
+        cadence = np.linspace(0, 110, 100)
+        gears = [50. / 11., 50. / 12., 50. / 13, 50. / 14., 50. / 16., 50. / 18, 50. / 20., 50. / 22., 50. / 25,
+                 50. / 28., 50. / 32., 34. / 11., 34. / 12., 34. / 13, 34. / 14., 34. / 16., 34. / 18, 34. / 20.,
+                 34. / 22., 34. / 25, 34. / 28., 34. / 32.]
+
+        # Plot
+        fig_cadence = go.Figure()
+        fig_cadence.add_trace(go.Scatter(x=df_climb["cad"],
+                                         y=df_climb["inst_mps"],
+                                         mode='markers',
+                                         name="Measured",
+                                         marker=go.scatter.Marker(size=6,
+                                                                  color=df_climb["hr"],
+                                                                  colorscale=px.colors.sequential.Bluered),
+                                         )
+                              )
+        for gear in gears:
+            speed = 2.0 * np.pi * (622.0 / 1000 / 2.0) * gear * (cadence / 60.0)  # mps
+            fig_cadence.add_trace(go.Scatter(x=cadence,
+                                             y=speed,
+                                             mode='lines',
+                                             name="{:.1f}".format(gear),
+                                             line=dict(
+                                                 width=1,
+                                                 color="gray"),
+                                             )
+                                  )
+        fig_cadence.update_xaxes(range=[40, 120])
+        fig_cadence.update_yaxes(range=[0, 50./3.6])
+        fig_cadence.update_layout(title="Cadence - Speed curve")
+        fig_cadence.update_layout(margin={"r": 40, "t": 40, "l": 40, "b": 40})
+        fig_cadence.show()
+
+    def power_curve(self, interval, trace_nr=0):
+        """
+        This method operates on only one trace
+        :param interval: [start_meter, end_meter]
+        :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
+        :return: plots
+        """
+
+        # air density in kg/m^3
+        def air_density(altitude=500, T=293):
+            L = 0.0065
+            T0 = 298
+            M = 0.02896
+            Rs = 287.058
+            p_exp = M * g / (R * L)
+            p = atm * (1 - (L * altitude / T0)) ** p_exp
+            return p / (Rs * T)
+
+        def F_air(speed, CdA=0.45, rho=air_density()):
+            """
+            :param speed: [m/s]
+            :param CdA:
+            :param rho:
+            :return:
+            """
+            return 0.5 * CdA * rho * speed ** 2
+
+        def F_roll(grad, m, Crr=0.00483):
+            return Crr * np.cos(np.arctan(grad)) * m * g
+
+        def F_grav(grad, m):
+            return np.sin(np.arctan(grad)) * m * g
+
+        def P_needed(speed, grad, m, L_dt=0.051):
+            F_resist = F_air(speed) + F_roll(grad, m) + F_grav(grad, m)
+            P_needed = F_resist * speed / (1.0 - L_dt)
+            return P_needed
+
+        # Select only the points belonging to the climb
+        assert interval[0] >= 0
+        assert interval[1] >= 0
+        df_selection = self.df[trace_nr][['lon', 'lat', 'dist_geo2d', 'elev', 'inst_mps']].copy()
+        if interval[1] == 0:
+            df_selection = df_selection[df_selection["dist_geo2d"] >= interval[0]]
+        else:
+            df_selection = df_selection[(df_selection["dist_geo2d"] >= interval[0]) & (df_selection["dist_geo2d"] <= interval[1])]
+
+        # Compute gradient
+        df_selection['elev_delta'] = df_selection.elev.diff().shift(-1)
+        df_selection['dist_delta'] = df_selection.dist_geo2d.diff().shift(-1)
+        df_selection['gradient'] = df_selection['elev_delta'] / df_selection['dist_delta']
+
+        #print(df_selection)
+
+        #mph_vals = np.arange(4, 12.1, 0.1)
+        #grad_vals = np.arange(0.0, 0.25, 0.03)
+        #df = pd.DataFrame.from_records(data=[p for p in product(mph_vals, grad_vals)], columns=["speed", "gradient"])
+
+        df_selection["power"] = df_selection.apply(lambda x: P_needed(x.inst_mps, x.gradient, 86), axis=1)
+
+        df_selection.fillna(0, inplace=True)
+
+        # Remove idle points and compare average speeds
+        df_pushing = df_selection[df_selection['power'] >= 0.0]
+
+        print("Average power: {} W".format(np.mean(df_pushing['power'])))
+
+        #print(df_selection)
+        #print(P_needed(30/3.6, 0, 86))
+
+        # calculate for me and my bike
+        #df['W/kg'] = [Wperkg(63.5, 8.0, a.speed, a.gradient) for a in df.itertuples()]
+
+
+
+        # Plot
+        fig_cadence = go.Figure()
+        fig_cadence.add_trace(go.Scatter(x=df_selection["dist_geo2d"],
+                                         y=df_selection["power"],
+                                         mode='lines'
+                                         )
+                              )
+        fig_cadence.update_layout(title="Power vs. Distance")
+        fig_cadence.update_layout(margin={"r": 40, "t": 40, "l": 40, "b": 40})
+        fig_cadence.show()
+
+
 
 def main():
     """
@@ -396,6 +550,8 @@ def main():
                            debug=False,
                            debug_plots=0)
     # lagastrello.gradient(interval=[94819, 106882])
+    # lagastrello.cadence_speed_curve(interval=[0, 0])
+    lagastrello.power_curve(interval=[0, 0])
 
 
 if __name__ == "__main__":
