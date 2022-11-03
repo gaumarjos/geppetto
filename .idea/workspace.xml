@@ -2,20 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="de16e542-92d0-4201-b9c7-0ce933c02bb6" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/tracks/Autumnal_chestnut_trees_Cisa_and_Brattello.gpx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tracks/Even_more_local_passes.gpx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tracks/More_and_more_local_passes_W19_D3_.gpx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tracks/More_local_4_passes.gpx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tracks/More_local_passes_W17_D3_.gpx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tracks/The_local_4_or_5_passes.gpx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tracks/Two_more_W20_D3_.gpx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/geppetto.py" beforeDir="false" afterPath="$PROJECT_DIR$/geppetto.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tracks/AVP/avp01.gpx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tracks/AVP/avp02.gpx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tracks/AVP/avp03.gpx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tracks/AVP/avp04.gpx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tracks/AVP/avp05.gpx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
