@@ -1,4 +1,5 @@
 # https://thatmaceguy.github.io/python/gps-data-analysis-intro/
+# https://plotly.com/python/mapbox-layers/
 
 
 import numpy as np
@@ -214,9 +215,39 @@ class Geppetto():
                                         arrowhead=1)
         fig_gradient.show()
 
-        if 1:
+        if 0:
             fig_map = px.line_mapbox(df_climb, lat='lat', lon='lon', hover_name='dist_geo2d_neg', mapbox_style="open-street-map",
                                      zoom=11)
+            fig_map.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+            fig_map.show()
+
+        if 0:
+            fig_map = px.scatter_mapbox(df_climb, lat="lat", lon="lon", hover_name="dist_geo2d_neg", zoom=11)
+            fig_map.update_layout(mapbox_style="open-street-map")
+            fig_map.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+            fig_map.show()
+
+        if 1:
+            print(np.mean(df_climb["lon"]))
+            print(np.mean(df_climb["lat"]))
+
+            fig_map = go.Figure(go.Scattermapbox(lat=df_climb["lat"],
+                                                 lon=df_climb["lon"],
+                                                 mode='markers',
+                                                 marker=go.scattermapbox.Marker(size=6)))
+            fig_map.update_layout(mapbox_style="open-street-map")
+            fig_map.update_layout(
+                hovermode='closest',
+                mapbox=dict(
+                    bearing=0,
+                    center=go.layout.mapbox.Center(
+                        lat=np.mean(df_climb["lat"]),
+                        lon=np.mean(df_climb["lon"])
+                    ),
+                    pitch=0,
+                    zoom=11
+                )
+            )
             fig_map.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
             fig_map.show()
 
