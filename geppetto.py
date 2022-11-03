@@ -37,12 +37,29 @@ class Geppetto():
 
             gpx = gpxpy.parse(open(gpx_file, 'r'))
             points = gpx.tracks[0].segments[0].points
-            df = pd.DataFrame(columns=['lon', 'lat', 'elev', 'time'])
+            df = pd.DataFrame(columns=['lon', 'lat', 'elev', 'time', 'atemp', 'hr', 'cad'])
             for point in points:
+                # See what extension tags are there
+                atemp = None
+                hr = None
+                cad = None
+                for ext in point.extensions:
+                    for extchild in list(ext):
+                        if extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}atemp":
+                            atemp = int(extchild.text)
+                        elif extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}hr":
+                            hr = int(extchild.text)
+                        elif extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}cad":
+                            cad = int(extchild.text)
+                # Add data to the df
                 df = pd.concat([df, pd.DataFrame(data={'lon': point.longitude,
                                                        'lat': point.latitude,
                                                        'elev': point.elevation,
-                                                       'time': point.time},
+                                                       'time': point.time,
+                                                       'atemp': atemp if atemp is not None else np.nan,
+                                                       'hr': hr if hr is not None else np.nan,
+                                                       'cad': cad if cad is not None else np.nan,
+                                                       },
                                                  index=[0])],
                                axis=0,
                                join='outer',
@@ -155,7 +172,16 @@ class Geppetto():
             df['avg_mps_roll'] = df['inst_mps'].rolling(20, center=True).mean()
             if debug_plots:
                 fig_5 = px.line(df, x='time', y=['inst_mps', 'avg_mps_roll'],
-                                template='plotly_dark')  # as of 2020-05-26 Plotly 4.8 you can pass a list of columns to either x or y and plotly will figure it out
+                                template='plotly_dark')
+                fig_5.show()
+
+            if debug_plots:
+                fig_5 = px.line(df, x='time', y=['cad', 'atemp', 'hr'],
+                                template='plotly_dark')
+                fig_5.show()
+
+            if 1:
+                fig_5 = px.scatter(df, x='inst_mps', y='cad')
                 fig_5.show()
 
             # Once done, take the current df (local) and append it to the list of df's
@@ -368,7 +394,8 @@ def main():
 
     lagastrello = Geppetto(["tracks/More_local_4_passes.gpx"],
                            plots=False,
-                           debug_plots=True)
+                           debug=False,
+                           debug_plots=0)
     # lagastrello.gradient(interval=[94819, 106882])
 
 
