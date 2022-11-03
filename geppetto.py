@@ -21,11 +21,9 @@ import datetime
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-DEBUG = False
-
 
 class Geppetto():
-    def __init__(self, gpx_files):
+    def __init__(self, gpx_files, plots=False, debug_plots=False, debug=False):
         """
         The object can load multiple gpx files at once. Useful when we want to plot multiple traces on the same map. The
         processing is done independently using local variables and the results are then appended to a class variable.
@@ -50,24 +48,18 @@ class Geppetto():
                                join='outer',
                                ignore_index=True)
 
-            if DEBUG:
+            if debug:
                 print(df)
                 print(df.describe())
 
-            if 0:
+            if debug_plots:
                 fig_1 = px.scatter(df, x='lon', y='lat', template='plotly_dark')
                 fig_1.show()
 
-            if 0:
-                fig_3 = px.scatter_3d(df, x='lon', y='lat', z='elev', color='elev', template='plotly_dark')
-                fig_3.update_traces(marker=dict(size=2), selector=dict(mode='markers'))
-                fig_3.show()
-
-            if 0:
-                fig_4 = px.line_mapbox(df, lat='lat', lon='lon', hover_name='time', mapbox_style="open-street-map",
-                                       zoom=11)
-                fig_4.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
-                fig_4.show()
+            if debug_plots:
+                fig_2 = px.scatter_3d(df, x='lon', y='lat', z='elev', color='elev', template='plotly_dark')
+                fig_2.update_traces(marker=dict(size=2), selector=dict(mode='markers'))
+                fig_2.show()
 
             # first create lists to store the results, these will be appended ot the dataframe at the end
             # Note: i'll be working from the gps_points object directly and then appending results into the dataframe. It would make a lot more sense to operate directly on the dataframe.
@@ -136,15 +128,15 @@ class Geppetto():
             print(f"Elevation Gain: {round(sum(df[df['delta_elev'] > 0]['delta_elev']), 2)}")
             print(f"Elevation Loss: {round(sum(df[df['delta_elev'] < 0]['delta_elev']), 2)}")
 
-            if 0:
-                fig_5 = px.line(df, x='time', y='dist_geo3d', template='plotly_dark')
-                fig_5.show()
+            if debug_plots:
+                fig_3 = px.line(df, x='time', y='dist_geo3d', template='plotly_dark')
+                fig_3.show()
 
             df['inst_mps'] = df['delta_geo3d'] / df['delta_time']
-            if 0:
-                fig_8 = px.histogram(df, x='inst_mps', template='plotly_dark')
-                fig_8.update_traces(xbins=dict(start=0, end=12, size=0.1))
-                fig_8.show()
+            if debug_plots:
+                fig_4 = px.histogram(df, x='inst_mps', template='plotly_dark')
+                fig_4.update_traces(xbins=dict(start=0, end=12, size=0.1))
+                fig_4.show()
 
             df.fillna(0,
                       inplace=True)  # fill in the NaN's in the first row of distances and deltas with 0. They were breaking the overall average speed calculation
@@ -164,19 +156,52 @@ class Geppetto():
 
             df['avg_mps_roll'] = df['inst_mps'].rolling(20, center=True).mean()
 
-            if 0:
-                fig_16 = px.line(df, x='time', y=['inst_mps', 'avg_mps_roll'],
-                                 template='plotly_dark')  # as of 2020-05-26 Plotly 4.8 you can pass a list of columns to either x or y and plotly will figure it out
+            if debug_plots:
+                fig_5 = px.line(df, x='time', y=['inst_mps', 'avg_mps_roll'],
+                                template='plotly_dark')  # as of 2020-05-26 Plotly 4.8 you can pass a list of columns to either x or y and plotly will figure it out
 
-                fig_16.show()
-
-            if 0:
-                fig_5 = px.line(df, x='dist_geo2d', y='elev', template='plotly_dark')
                 fig_5.show()
 
             # Once done, take the current df (local) and append it to the list of df's
             print()
             self.df.append(df)
+
+        # Map and elevation plots
+        if plots:
+            fig_map = go.Figure()
+            for i, df in enumerate(self.df):
+                fig_map.add_trace(go.Scattermapbox(lat=df["lat"],
+                                                   lon=df["lon"],
+                                                   mode='markers',
+                                                   marker=go.scattermapbox.Marker(size=6),
+                                                   name=gpx_files[i],
+                                                   )
+                                  )
+                fig_map.update_layout(
+                    hovermode='closest',
+                    mapbox=dict(
+                        style="open-street-map",
+                        bearing=0,
+                        center=go.layout.mapbox.Center(
+                            lat=np.mean(df["lat"]),
+                            lon=np.mean(df["lon"])
+                        ),
+                        pitch=0,
+                        zoom=11
+                    )
+                )
+            fig_map.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+            fig_map.show()
+
+            fig_elev = go.Figure()
+            for i, df in enumerate(self.df):
+                fig_elev.add_trace(go.Scatter(x=df["dist_geo2d"],
+                                              y=df["elev"],
+                                              name=gpx_files[i],
+                                              )
+                                   )
+            fig_elev.update_layout(margin={"r": 0, "t": 20, "l": 0, "b": 0})
+            fig_elev.show()
 
     @staticmethod
     def colorscale(g):
@@ -325,14 +350,18 @@ def main():
     :return: nothing
     """
     alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx",
-                     "tracks/Local_passes_gravel_edition_.gpx"])
-    alpe.gradient(interval=[33739, 48124])
-
-    # arcana = Geppetto("tracks/Local_passes_gravel_edition_.gpx")
-    # arcana.gradient(interval=[25510, 41000], resolution=1000)
-
-    # cirone = Geppetto("tracks/Cisa_e_Cirone.gpx")
-    # cirone.gradient(interval=[62380, 76542], resolution=500)
+                     "tracks/Local_passes_gravel_edition_.gpx",
+                     "tracks/Two_more_W20_D3_.gpx",
+                     "tracks/The_local_4_or_5_passes.gpx",
+                     "tracks/More_local_passes_W17_D3_.gpx",
+                     "tracks/More_local_4_passes.gpx",
+                     "tracks/More_and_more_local_passes_W19_D3_.gpx",
+                     "tracks/Even_more_local_passes.gpx",
+                     "tracks/Cisa_e_Cirone.gpx",
+                     "tracks/Autumnal_chestnut_trees_Cisa_and_Brattello.gpx",
+                     ],
+                    plots=True)
+    # alpe.gradient(interval=[33739, 48124])
 
 
 if __name__ == "__main__":

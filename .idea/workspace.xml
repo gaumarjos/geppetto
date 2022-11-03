@@ -2,7 +2,20 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="de16e542-92d0-4201-b9c7-0ce933c02bb6" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/tracks/Autumnal_chestnut_trees_Cisa_and_Brattello.gpx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tracks/Even_more_local_passes.gpx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tracks/More_and_more_local_passes_W19_D3_.gpx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tracks/More_local_4_passes.gpx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tracks/More_local_passes_W17_D3_.gpx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tracks/The_local_4_or_5_passes.gpx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tracks/Two_more_W20_D3_.gpx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/geppetto.py" beforeDir="false" afterPath="$PROJECT_DIR$/geppetto.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tracks/AVP/avp01.gpx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tracks/AVP/avp02.gpx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tracks/AVP/avp03.gpx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tracks/AVP/avp04.gpx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tracks/AVP/avp05.gpx" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -28,6 +41,12 @@
   <component name="PropertiesComponent">
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/tracks" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/tracks" />
+    </key>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
@@ -39,5 +58,16 @@
       <updated>1667422020737</updated>
     </task>
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
 </project>
