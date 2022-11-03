@@ -149,8 +149,7 @@ class Geppetto():
             df['inst_mps'] = df['delta_geo3d'] / df['delta_time']
             if df.isna().sum().sum() > 1:
                 print("Warning: too many NaN's")
-            else:
-                df.fillna(0, inplace=True)
+            df.fillna(0, inplace=True)
 
             # Speed distribution to determine cutoff speed to remove idle points
             if debug_plots:
