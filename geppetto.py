@@ -172,7 +172,7 @@ class Geppetto():
             for i, df in enumerate(self.df):
                 fig_map.add_trace(go.Scattermapbox(lat=df["lat"],
                                                    lon=df["lon"],
-                                                   mode='markers',
+                                                   mode='lines+markers',
                                                    marker=go.scattermapbox.Marker(size=6),
                                                    name=gpx_files[i],
                                                    )
@@ -197,6 +197,7 @@ class Geppetto():
             for i, df in enumerate(self.df):
                 fig_elev.add_trace(go.Scatter(x=df["dist_geo2d"],
                                               y=df["elev"],
+                                              mode='lines+markers',
                                               name=gpx_files[i],
                                               )
                                    )
@@ -316,10 +317,14 @@ class Geppetto():
             # Map (1,2)
             fig.add_trace(go.Scattermapbox(lat=df_climb["lat"],
                                            lon=df_climb["lon"],
-                                           mode='markers',
+                                           mode='lines+markers',
+                                           line=dict(
+                                               width=2,
+                                               color="gray",
+                                           ),
                                            marker=go.scattermapbox.Marker(size=6,
                                                                           color=df_climb["elev"],
-                                                                          colorscale=px.colors.sequential.Greens_r),
+                                                                          colorscale=px.colors.sequential.Bluered),
                                            subplot='mapbox2',
                                            name='',
                                            showlegend=False
@@ -349,19 +354,23 @@ def main():
     Main function
     :return: nothing
     """
-    alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx",
-                     "tracks/Local_passes_gravel_edition_.gpx",
-                     "tracks/Two_more_W20_D3_.gpx",
-                     "tracks/The_local_4_or_5_passes.gpx",
-                     "tracks/More_local_passes_W17_D3_.gpx",
-                     "tracks/More_local_4_passes.gpx",
-                     "tracks/More_and_more_local_passes_W19_D3_.gpx",
-                     "tracks/Even_more_local_passes.gpx",
-                     "tracks/Cisa_e_Cirone.gpx",
-                     "tracks/Autumnal_chestnut_trees_Cisa_and_Brattello.gpx",
-                     ],
-                    plots=True)
-    # alpe.gradient(interval=[33739, 48124])
+    # geppetto = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx",
+    #                  "tracks/Local_passes_gravel_edition_.gpx",
+    #                  "tracks/Two_more_W20_D3_.gpx",
+    #                  "tracks/The_local_4_or_5_passes.gpx",
+    #                  "tracks/More_local_passes_W17_D3_.gpx",
+    #                  "tracks/More_local_4_passes.gpx",
+    #                  "tracks/More_and_more_local_passes_W19_D3_.gpx",
+    #                  "tracks/Even_more_local_passes.gpx",
+    #                  "tracks/Cisa_e_Cirone.gpx",
+    #                  "tracks/Autumnal_chestnut_trees_Cisa_and_Brattello.gpx",
+    #                  ],
+    #                 plots=True)
+    # geppetto.gradient(interval=[33739, 48124])
+
+    lagastrello = Geppetto(["tracks/More_local_4_passes.gpx"],
+                           plots=True)
+    lagastrello.gradient(interval=[94819, 106882])
 
 
 if __name__ == "__main__":
