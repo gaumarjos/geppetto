@@ -53,10 +53,6 @@ class Geppetto():
                 print(df.describe())
 
             if debug_plots:
-                fig_1 = px.scatter(df, x='lon', y='lat', template='plotly_dark')
-                fig_1.show()
-
-            if debug_plots:
                 fig_2 = px.scatter_3d(df, x='lon', y='lat', z='elev', color='elev', template='plotly_dark')
                 fig_2.update_traces(marker=dict(size=2), selector=dict(mode='markers'))
                 fig_2.show()
@@ -119,11 +115,11 @@ class Geppetto():
             # Stats
             print("Spherical Distance 2D: {:.3f} km".format(dist_sph2d[-1] / 1000))
             print("Spherical Distance 3D: {:.3f} km".format(dist_sph3d[-1] / 1000))
-            print("Elevation Correction: {:.3f} meters".format((dist_sph3d[-1]) - (dist_sph2d[-1])))
+            print("Elevation Correction (spherical 3D-2D): {:.0f} m".format((dist_sph3d[-1]) - (dist_sph2d[-1])))
             print("Geodesic Distance 2D: {:.3f} km".format(dist_geo2d[-1] / 1000))
             print("Geodesic Distance 3D: {:.3f} km".format(dist_geo3d[-1] / 1000))
-            print("Elevation Correction: {:.3f} meters".format((dist_geo3d[-1]) - (dist_geo2d[-1])))
-            print("Model Difference: {:.3f} meters".format((dist_geo3d[-1]) - (dist_sph3d[-1])))
+            print("Elevation Correction (geodesic 3D-2D): {:.0f} m".format((dist_geo3d[-1]) - (dist_geo2d[-1])))
+            print("Model Difference (spherical-geodesic 3D): {:.0f} m".format((dist_geo3d[-1]) - (dist_sph3d[-1])))
             print("Total Time: {}".format(str(datetime.timedelta(seconds=sum(delta_time)))))
             print(f"Elevation Gain: {round(sum(df[df['delta_elev'] > 0]['delta_elev']), 2)}")
             print(f"Elevation Loss: {round(sum(df[df['delta_elev'] < 0]['delta_elev']), 2)}")
@@ -132,34 +128,34 @@ class Geppetto():
                 fig_3 = px.line(df, x='time', y='dist_geo3d', template='plotly_dark')
                 fig_3.show()
 
+            # Speed
             df['inst_mps'] = df['delta_geo3d'] / df['delta_time']
+            if df.isna().sum().sum() > 1:
+                print("Warning: too many NaN's")
+            else:
+                df.fillna(0, inplace=True)
+
+            # Speed distribution to determine cutoff speed to remove idle points
             if debug_plots:
                 fig_4 = px.histogram(df, x='inst_mps', template='plotly_dark')
                 fig_4.update_traces(xbins=dict(start=0, end=12, size=0.1))
                 fig_4.show()
 
-            df.fillna(0,
-                      inplace=True)  # fill in the NaN's in the first row of distances and deltas with 0. They were breaking the overall average speed calculation
-
-            df_moving = df[df[
-                               'inst_mps'] >= 0.9]  # make a new dataframe filtered to only records where instantaneous speed was greater than 0.9m/s
-
-            avg_mps = (sum((df['inst_mps'] * df['delta_time'])) / sum(df['delta_time']))
-
-            avg_mov_mps = (sum((df_moving['inst_mps'] * df_moving['delta_time'])) / sum(
-                df_moving['delta_time']))
-
+            # Remove idle points and compare average speeds
+            df_moving = df[df['inst_mps'] >= 0.9]
+            avg_mps = sum((df['inst_mps'] * df['delta_time'])) / sum(df['delta_time'])
+            avg_mov_mps = sum((df_moving['inst_mps'] * df_moving['delta_time'])) / sum(
+                df_moving['delta_time'])
             print("Maximum Speed: {} km/h".format(round((3.6 * df['inst_mps'].max(axis=0)), 2)))
             print("Average Speed: {} km/h".format(round((3.6 * avg_mps), 2)))
             print("Average Moving Speed: {} km/h".format(round((3.6 * avg_mov_mps), 2)))
             print("Moving Time: {}".format(str(datetime.timedelta(seconds=sum(df_moving['delta_time'])))))
 
+            # Coarsely filter speed to remove outliers (this is a bad way to do it, a Kalman filter should be used)
             df['avg_mps_roll'] = df['inst_mps'].rolling(20, center=True).mean()
-
             if debug_plots:
                 fig_5 = px.line(df, x='time', y=['inst_mps', 'avg_mps_roll'],
                                 template='plotly_dark')  # as of 2020-05-26 Plotly 4.8 you can pass a list of columns to either x or y and plotly will figure it out
-
                 fig_5.show()
 
             # Once done, take the current df (local) and append it to the list of df's
@@ -225,6 +221,7 @@ class Geppetto():
         :return: plots
         """
 
+        # Select only the points belonging to the climb
         df_climb = self.df[trace_nr][['lon', 'lat', 'dist_geo2d', 'elev']].copy()
         df_climb = df_climb[(df_climb["dist_geo2d"] >= interval[0]) & (df_climb["dist_geo2d"] <= interval[1])]
         df_climb['dist_geo2d_neg'] = -(df_climb["dist_geo2d"].iloc[-1] - df_climb["dist_geo2d"])
@@ -239,10 +236,11 @@ class Geppetto():
         df_climb = df_climb.sort_values(by='dist_geo2d_neg')
         df_climb = df_climb.interpolate(method='linear', limit_direction='backward', limit=1)
 
-        df_gradient = df_climb[df_climb['dist_geo2d_neg'].isin(steps)]
-        df_gradient['elev_delta'] = df_gradient.elev.diff().shift(-1)
-        df_gradient['dist_delta'] = df_gradient.dist_geo2d_neg.diff().shift(-1)
-        df_gradient['gradient'] = df_gradient['elev_delta'] / df_gradient['dist_delta'] * 100
+        # Copy only elements at step distance in a new df
+        df_climb_subset = df_climb[df_climb['dist_geo2d_neg'].isin(steps)].copy()
+        df_climb_subset['elev_delta'] = df_climb_subset.elev.diff().shift(-1)
+        df_climb_subset['dist_delta'] = df_climb_subset.dist_geo2d_neg.diff().shift(-1)
+        df_climb_subset['gradient'] = df_climb_subset['elev_delta'] / df_climb_subset['dist_delta'] * 100
 
         # Option #1
         # Plots in independent pages
@@ -253,7 +251,7 @@ class Geppetto():
             for i in range(len(steps) - 1):
                 portion = df_climb[
                     (df_climb['dist_geo2d_neg'] >= steps[i]) & (df_climb['dist_geo2d_neg'] <= steps[i + 1])]
-                g = df_gradient['gradient'].iloc[i]
+                g = df_climb_subset['gradient'].iloc[i]
                 fig_gradient.add_trace(
                     go.Scatter(x=portion['dist_geo2d_neg'], y=portion['elev'], fill='tozeroy',
                                fillcolor=self.colorscale(g),
@@ -298,7 +296,7 @@ class Geppetto():
             for i in range(len(steps) - 1):
                 portion = df_climb[
                     (df_climb['dist_geo2d_neg'] >= steps[i]) & (df_climb['dist_geo2d_neg'] <= steps[i + 1])]
-                g = df_gradient['gradient'].iloc[i]
+                g = df_climb_subset['gradient'].iloc[i]
                 fig.add_trace(go.Scatter(x=portion['dist_geo2d_neg'],
                                          y=portion['elev'],
                                          fill='tozeroy',
@@ -369,8 +367,9 @@ def main():
     # geppetto.gradient(interval=[33739, 48124])
 
     lagastrello = Geppetto(["tracks/More_local_4_passes.gpx"],
-                           plots=True)
-    lagastrello.gradient(interval=[94819, 106882])
+                           plots=False,
+                           debug_plots=True)
+    # lagastrello.gradient(interval=[94819, 106882])
 
 
 if __name__ == "__main__":
