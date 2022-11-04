@@ -3,6 +3,7 @@ DOCUMENTATION
 
 Maths
 https://thatmaceguy.github.io/python/gps-data-analysis-intro/
+https://rkurchin.github.io/posts/2020/05/ftp
 
 Graphics
 https://plotly.com/python/mapbox-layers/
@@ -20,26 +21,33 @@ from math import sqrt, floor
 import datetime
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from scipy.constants import g, R, atm
+import scipy.constants as const
+import os
 from itertools import product
 
 
 class Geppetto():
-    def __init__(self, gpx_files, plots=False, debug_plots=False, debug=False):
+    def __init__(self, files, plots=False, debug_plots=False, debug=False):
         """
         The object can load multiple gpx files at once. Useful when we want to plot multiple traces on the same map. The
         processing is done independently using local variables and the results are then appended to a class variable.
-        :param gpx_files: an array of .gpx files
+        All speeds are in m/s unless km/h are specified (and that can happen only in plots)
+
+        :param files: an array of .gpx files
         """
 
-        self.df = []
+        # Replacement value
+        default_atemp = 26  # np.nan
 
-        for gpx_file in gpx_files:
-            print("-------- Filename: {} --------".format(gpx_file))
-
-            gpx = gpxpy.parse(open(gpx_file, 'r'))
+        def import_gpx(file):
+            """
+            Import a gpx file
+            :param file: filename
+            :return: Pandas Dataframe
+            """
+            gpx = gpxpy.parse(open(file, 'r'))
             points = gpx.tracks[0].segments[0].points
-            df = pd.DataFrame(columns=['lon', 'lat', 'elev', 'time', 'atemp', 'hr', 'cad'])
+            local_df = pd.DataFrame(columns=['lon', 'lat', 'elev', 'time', 'atemp', 'hr', 'cad'])
             for point in points:
                 # See what extension tags are there
                 atemp = None
@@ -54,18 +62,31 @@ class Geppetto():
                         elif extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}cad":
                             cad = float(extchild.text)
                 # Add data to the df
-                df = pd.concat([df, pd.DataFrame(data={'lon': point.longitude,
-                                                       'lat': point.latitude,
-                                                       'elev': point.elevation,
-                                                       'time': point.time,
-                                                       'atemp': atemp if atemp is not None else np.nan,
-                                                       'hr': hr if hr is not None else np.nan,
-                                                       'cad': cad if cad is not None else np.nan,
-                                                       },
-                                                 index=[0])],
-                               axis=0,
-                               join='outer',
-                               ignore_index=True)
+                local_df = pd.concat([local_df, pd.DataFrame(data={'lon': point.longitude,
+                                                                   'lat': point.latitude,
+                                                                   'elev': point.elevation,
+                                                                   'time': point.time,
+                                                                   'atemp': atemp if atemp is not None else default_atemp,
+                                                                   'hr': hr if hr is not None else np.nan,
+                                                                   'cad': cad if cad is not None else np.nan,
+                                                                   },
+                                                             index=[0])],
+                                     axis=0,
+                                     join='outer',
+                                     ignore_index=True)
+            return local_df
+
+        # Create empty lists to be populated
+        self.df = []  # "raw" traces
+        self.df_moving = []  # traces with idle segments removed
+
+        # Go through all files
+        for file in files:
+            print("-------- Filename: {} --------".format(file))
+
+            _, extension = os.path.splitext(file)
+            if extension == ".gpx":
+                df = import_gpx(file)
 
             if debug:
                 print(df)
@@ -90,12 +111,12 @@ class Geppetto():
             dist_geo2d = [0]  # cumulative distance from geodesic method only
             dist_geo3d = [0]  # cumulative distance from geodesic method, adjusted for elevation
 
-            for idx in range(1, len(points)):
-                start = points[idx - 1]
-                end = points[idx]
+            for idx in range(1, len(df)):
+                start = df.iloc[idx - 1]
+                end = df.iloc[idx]
 
                 # elevation
-                temp_delta_elev = end.elevation - start.elevation
+                temp_delta_elev = end['elev'] - start['elev']
                 delta_elev.append(temp_delta_elev)
 
                 # time
@@ -103,8 +124,8 @@ class Geppetto():
                 delta_time.append(temp_delta_time)
 
                 # distance from spherical model
-                temp_delta_sph2d = distance.great_circle((start.latitude, start.longitude),
-                                                         (end.latitude, end.longitude)).m
+                temp_delta_sph2d = distance.great_circle((start.lat, start.lon),
+                                                         (end.lat, end.lon)).m
                 delta_sph2d.append(temp_delta_sph2d)
                 dist_sph2d.append(dist_sph2d[-1] + temp_delta_sph2d)
                 temp_delta_sph3d = sqrt(temp_delta_sph2d ** 2 + temp_delta_elev ** 2)
@@ -112,7 +133,7 @@ class Geppetto():
                 dist_sph3d.append(dist_sph3d[-1] + temp_delta_sph3d)
 
                 # distance from geodesic model
-                temp_delta_geo2d = distance.distance((start.latitude, start.longitude), (end.latitude, end.longitude)).m
+                temp_delta_geo2d = distance.distance((start.lat, start.lon), (end.lat, end.lon)).m
                 delta_geo2d.append(temp_delta_geo2d)
                 dist_geo2d.append(dist_geo2d[-1] + temp_delta_geo2d)
                 temp_delta_geo3d = sqrt(temp_delta_geo2d ** 2 + temp_delta_elev ** 2)
@@ -148,36 +169,45 @@ class Geppetto():
                 fig_3.show()
 
             # Speed
-            df['inst_mps'] = df['delta_geo3d'] / df['delta_time']
+            df['inst_speed'] = df['delta_geo3d'] / df['delta_time']
 
             # Remove absurd outliers
-            df = df[df['inst_mps'] < 80.0/3.6]
+            df = df[df['inst_speed'] < 80.0 / 3.6]
 
             # Check and fill nan's
             if df.isna().sum().sum() > 1:
                 print("Warning: too many NaN's")
             df.fillna(0, inplace=True)
 
-            # Speed distribution to determine cutoff speed to remove idle points
+            # Look at delta_geo3d and delta_time over time and see if everything makes sense
+            if 0:
+                fig_delta_geo3d = px.line(df, x='time', y='delta_geo3d')
+                fig_delta_geo3d.show()
+                fig_delta_time = px.line(df, x='time', y='delta_time')
+                fig_delta_time.show()
+                fig_inst_speed = px.line(df, x='time', y='inst_speed')
+                fig_inst_speed.show()
+
+            # Speed distribution to determine cutoff speed to remove idle points. Threshold determined to be 0.9 m/s.
             if debug_plots:
-                fig_4 = px.histogram(df, x='inst_mps', template='plotly_dark')
+                fig_4 = px.histogram(df, x='inst_speed', template='plotly_dark')
                 fig_4.update_traces(xbins=dict(start=0, end=12, size=0.1))
                 fig_4.show()
 
             # Remove idle points and compare average speeds
-            df_moving = df[df['inst_mps'] >= 0.9]
-            avg_mps = sum((df['inst_mps'] * df['delta_time'])) / sum(df['delta_time'])
-            avg_mov_mps = sum((df_moving['inst_mps'] * df_moving['delta_time'])) / sum(
+            df_moving = df[df['inst_speed'] >= 0.9]
+            avg_speed = sum((df['inst_speed'] * df['delta_time'])) / sum(df['delta_time'])
+            avg_mov_speed = sum((df_moving['inst_speed'] * df_moving['delta_time'])) / sum(
                 df_moving['delta_time'])
-            print("Maximum Speed: {} km/h".format(round((3.6 * df['inst_mps'].max(axis=0)), 2)))
-            print("Average Speed: {} km/h".format(round((3.6 * avg_mps), 2)))
-            print("Average Moving Speed: {} km/h".format(round((3.6 * avg_mov_mps), 2)))
+            print("Maximum Speed: {} km/h".format(round((3.6 * df['inst_speed'].max(axis=0)), 2)))
+            print("Average Speed: {} km/h".format(round((3.6 * avg_speed), 2)))
+            print("Average Moving Speed: {} km/h".format(round((3.6 * avg_mov_speed), 2)))
             print("Moving Time: {}".format(str(datetime.timedelta(seconds=sum(df_moving['delta_time'])))))
 
             # Coarsely filter speed to remove outliers (this is a bad way to do it, a Kalman filter should be used)
-            df['avg_mps_roll'] = df['inst_mps'].rolling(20, center=True).mean()
+            df['avg_speed_roll'] = df['inst_speed'].rolling(20, center=True).mean()
             if debug_plots:
-                fig_5 = px.line(df, x='time', y=['inst_mps', 'avg_mps_roll'],
+                fig_5 = px.line(df, x='time', y=['inst_speed', 'avg_speed_roll'],
                                 template='plotly_dark')
                 fig_5.show()
 
@@ -187,7 +217,7 @@ class Geppetto():
                 fig_5.show()
 
             if debug_plots:
-                fig_5 = px.scatter(df, x='inst_mps', y='cad', color='hr')
+                fig_5 = px.scatter(df, x='inst_speed', y='cad', color='hr')
                 fig_5.show()
 
             if debug_plots:
@@ -196,8 +226,9 @@ class Geppetto():
                 fig_4.show()
 
             # Once done, take the current df (local) and append it to the list of df's
-            print()
             self.df.append(df)
+            self.df_moving.append(df_moving)
+            print()
 
         # Map and elevation plots
         if plots:
@@ -207,7 +238,7 @@ class Geppetto():
                                                    lon=df["lon"],
                                                    mode='lines+markers',
                                                    marker=go.scattermapbox.Marker(size=6),
-                                                   name=gpx_files[i],
+                                                   name=files[i],
                                                    )
                                   )
                 fig_map.update_layout(
@@ -231,7 +262,7 @@ class Geppetto():
                 fig_elev.add_trace(go.Scatter(x=df["dist_geo2d"],
                                               y=df["elev"],
                                               mode='lines+markers',
-                                              name=gpx_files[i],
+                                              name=files[i],
                                               )
                                    )
             fig_elev.update_layout(margin={"r": 0, "t": 20, "l": 0, "b": 0})
@@ -399,7 +430,7 @@ class Geppetto():
         # Select only the points belonging to the climb
         assert interval[0] >= 0
         assert interval[1] >= 0
-        df_climb = self.df[trace_nr][['lon', 'lat', 'dist_geo2d', 'elev', 'cad', 'inst_mps', 'hr']].copy()
+        df_climb = self.df[trace_nr][['lon', 'lat', 'dist_geo2d', 'elev', 'cad', 'inst_speed', 'hr']].copy()
         if interval[1] == 0:
             df_climb = df_climb[df_climb["dist_geo2d"] >= interval[0]]
         else:
@@ -413,7 +444,7 @@ class Geppetto():
         # Plot
         fig_cadence = go.Figure()
         fig_cadence.add_trace(go.Scatter(x=df_climb["cad"],
-                                         y=df_climb["inst_mps"],
+                                         y=df_climb["inst_speed"],
                                          mode='markers',
                                          name="Measured",
                                          marker=go.scatter.Marker(size=6,
@@ -433,7 +464,7 @@ class Geppetto():
                                              )
                                   )
         fig_cadence.update_xaxes(range=[40, 120])
-        fig_cadence.update_yaxes(range=[0, 50./3.6])
+        fig_cadence.update_yaxes(range=[0, 50. / 3.6])
         fig_cadence.update_layout(title="Cadence - Speed curve")
         fig_cadence.update_layout(margin={"r": 40, "t": 40, "l": 40, "b": 40})
         fig_cadence.show()
@@ -446,57 +477,80 @@ class Geppetto():
         :return: plots
         """
 
-        # air density in kg/m^3
-        def air_density(altitude=500, T=293):
+        def F_air(speed, altitude=500, T_C=26, CdA=0.45):
+            """
+            :param speed: [m/s]
+            :param altitude: [m]
+            :param T: [K]
+            :param CdA:
+            :return: [N]
+            """
+            # Air density
             L = 0.0065
             T0 = 298
             M = 0.02896
             Rs = 287.058
-            p_exp = M * g / (R * L)
-            p = atm * (1 - (L * altitude / T0)) ** p_exp
-            return p / (Rs * T)
-
-        def F_air(speed, CdA=0.45, rho=air_density()):
-            """
-            :param speed: [m/s]
-            :param CdA:
-            :param rho:
-            :return:
-            """
+            T_K = T_C + 273.15
+            p_exp = M * const.g / (const.R * L)
+            p = const.atm * (1 - (L * altitude / T0)) ** p_exp
+            rho = p / (Rs * T_K)  # kg/m^3
             return 0.5 * CdA * rho * speed ** 2
 
-        def F_roll(grad, m, Crr=0.00483):
-            return Crr * np.cos(np.arctan(grad)) * m * g
+        def F_roll(gradient, m, Crr=0.00321):
+            """
+            Estimate rolling resistance for the 2 tires (TBC)
+            :param grad: ratio
+            :param m: [kg]
+            :param Crr: 0.00321 for Continental GP5000 @6.9bar
+            :return: [N]
+            """
+            return 2. * Crr * np.cos(np.arctan(gradient)) * m * const.g
 
-        def F_grav(grad, m):
-            return np.sin(np.arctan(grad)) * m * g
+        def F_grav(gradient, m):
+            """
+            :param gradient: ratio
+            :param m: [kg]
+            :return: [N]
+            """
+            return np.sin(np.arctan(gradient)) * m * const.g
 
-        def P_needed(speed, grad, m, L_dt=0.051):
-            F_resist = F_air(speed) + F_roll(grad, m) + F_grav(grad, m)
+        def P_needed(speed, altitude, T_C, gradient, m, L_dt=0.051):
+            """
+            :param speed: [m/s]
+            :param altitude: [m]
+            :param T_C: [°C]
+            :param gradient: ratio
+            :param m: [Kg]
+            :param L_dt:
+            :return:
+            """
+            F_resist = F_air(speed, altitude, T_C) + F_roll(gradient, m) + F_grav(gradient, m)
             P_needed = F_resist * speed / (1.0 - L_dt)
             return P_needed
 
-        # Select only the points belonging to the climb
+        # Work on a portion of the track
         assert interval[0] >= 0
         assert interval[1] >= 0
-        df_selection = self.df[trace_nr][['lon', 'lat', 'dist_geo2d', 'elev', 'inst_mps']].copy()
+        df_selection = self.df[trace_nr][['lon', 'lat', 'dist_geo2d', 'elev', 'inst_speed', 'atemp']].copy()
         if interval[1] == 0:
             df_selection = df_selection[df_selection["dist_geo2d"] >= interval[0]]
         else:
-            df_selection = df_selection[(df_selection["dist_geo2d"] >= interval[0]) & (df_selection["dist_geo2d"] <= interval[1])]
+            df_selection = df_selection[
+                (df_selection["dist_geo2d"] >= interval[0]) & (df_selection["dist_geo2d"] <= interval[1])]
 
         # Compute gradient
         df_selection['elev_delta'] = df_selection.elev.diff().shift(-1)
         df_selection['dist_delta'] = df_selection.dist_geo2d.diff().shift(-1)
         df_selection['gradient'] = df_selection['elev_delta'] / df_selection['dist_delta']
 
-        #print(df_selection)
+        # print(df_selection)
 
-        #mph_vals = np.arange(4, 12.1, 0.1)
-        #grad_vals = np.arange(0.0, 0.25, 0.03)
-        #df = pd.DataFrame.from_records(data=[p for p in product(mph_vals, grad_vals)], columns=["speed", "gradient"])
+        # mph_vals = np.arange(4, 12.1, 0.1)
+        # grad_vals = np.arange(0.0, 0.25, 0.03)
+        # df = pd.DataFrame.from_records(data=[p for p in product(mph_vals, grad_vals)], columns=["speed", "gradient"])
 
-        df_selection["power"] = df_selection.apply(lambda x: P_needed(x.inst_mps, x.gradient, 86), axis=1)
+        df_selection["power"] = df_selection.apply(lambda x: P_needed(x.inst_speed, x.elev, x.atemp, x.gradient, 86),
+                                                   axis=1)
 
         df_selection.fillna(0, inplace=True)
 
@@ -505,13 +559,11 @@ class Geppetto():
 
         print("Average power: {} W".format(np.mean(df_pushing['power'])))
 
-        #print(df_selection)
-        #print(P_needed(30/3.6, 0, 86))
+        # print(df_selection)
+        # print(P_needed(30/3.6, 0, 86))
 
         # calculate for me and my bike
-        #df['W/kg'] = [Wperkg(63.5, 8.0, a.speed, a.gradient) for a in df.itertuples()]
-
-
+        # df['W/kg'] = [Wperkg(63.5, 8.0, a.speed, a.gradient) for a in df.itertuples()]
 
         # Plot
         fig_cadence = go.Figure()
@@ -523,7 +575,6 @@ class Geppetto():
         fig_cadence.update_layout(title="Power vs. Distance")
         fig_cadence.update_layout(margin={"r": 40, "t": 40, "l": 40, "b": 40})
         fig_cadence.show()
-
 
 
 def main():
@@ -547,7 +598,7 @@ def main():
 
     lagastrello = Geppetto(["tracks/More_local_4_passes.gpx"],
                            plots=False,
-                           debug=False,
+                           debug=0,
                            debug_plots=0)
     # lagastrello.gradient(interval=[94819, 106882])
     # lagastrello.cadence_speed_curve(interval=[0, 0])
