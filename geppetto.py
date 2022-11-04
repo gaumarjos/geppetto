@@ -1,4 +1,4 @@
-'''
+"""
 DOCUMENTATION
 
 Importing
@@ -12,7 +12,8 @@ Graphics
 https://plotly.com/python/mapbox-layers/
 https://plotly.com/python/builtin-colorscales/
 https://github.com/plotly/plotly.py/issues/1728
-'''
+https://plotly.com/python/filled-area-plots/
+"""
 
 import numpy as np
 import gpxpy
@@ -653,9 +654,13 @@ class Geppetto():
 
         df_selection.fillna(0, inplace=True)
 
-        # Consider positive power only
-        df_pushing = df_selection[df_selection['c_power'] >= 0.0]
-        print("Average power: {} W".format(np.mean(df_pushing['c_power'])))
+        # Ideas
+        # A) Consider positive power only
+        # df_pushing = df_selection[df_selection['c_power'] >= 0.0]
+        # B) Set all negative powers to zero
+        df_selection.loc[df_selection["c_power"] < 0.0, "c_power"] = 0
+
+        print("Average power: {} W".format(np.mean(df_selection['c_power'])))
 
         # Plot
         fig_power = go.Figure()
@@ -703,12 +708,17 @@ def main():
     #                  "tracks/Autumnal_chestnut_trees_Cisa_and_Brattello.gpx",
     #                  ],
     #                 plots=True)
-    # geppetto.gradient(interval=[33739, 48124])
 
-    lagastrello = Geppetto(["tracks/More_local_4_passes.gpx"], plots=False, debug=0, debug_plots=0)
+    alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], plots=False, debug=0, debug_plots=0)
+    alpe.gradient(interval=[33739, 48124])
+    # alpe.cadence_speed_curve(interval=[0, 0])
+    alpe.estimate_power(interval=[33739, 48124])
+    alpe.estimate_power(interval=[0, 0])
+
+    # lagastrello = Geppetto(["tracks/More_local_4_passes.gpx"], plots=False, debug=0, debug_plots=0)
     # lagastrello.gradient(interval=[94819, 106882])
     # lagastrello.cadence_speed_curve(interval=[0, 0])
-    lagastrello.estimate_power(interval=[0, 0])
+    # lagastrello.estimate_power(interval=[0, 0])
 
     # arcana = Geppetto(["tracks/Local_passes_gravel_edition_W2_D2_.fit"], plots=False, debug=1, debug_plots=0)
     # arcana.gradient(interval=[94819, 106882])
