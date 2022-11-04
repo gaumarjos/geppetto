@@ -557,7 +557,7 @@ class Geppetto():
         fig_cadence.update_layout(margin={"r": 40, "t": 40, "l": 40, "b": 40})
         fig_cadence.show()
 
-    def power_curve(self, interval, trace_nr=0):
+    def estimate_power(self, interval, trace_nr=0):
         """
         This method operates on only one trace
         :param interval: [start_meter, end_meter]
@@ -565,7 +565,7 @@ class Geppetto():
         :return: plots
         """
 
-        def F_air(speed, altitude=500, T_C=26, CdA=0.45):
+        def P_air(speed, altitude, T_C, CdA=0.28, L_dt=0.051):
             """
             :param speed: [m/s]
             :param altitude: [m]
@@ -582,9 +582,11 @@ class Geppetto():
             p_exp = M * const.g / (const.R * L)
             p = const.atm * (1 - (L * altitude / T0)) ** p_exp
             rho = p / (Rs * T_K)  # kg/m^3
-            return 0.5 * CdA * rho * speed ** 2
+            F_air = 0.5 * CdA * rho * speed ** 2
+            P_air = F_air * speed / (1.0 - L_dt)
+            return P_air
 
-        def F_roll(gradient, m, Crr=0.00321):
+        def P_roll(gradient, m, speed, Crr=0.00321, L_dt=0.051):
             """
             Estimate rolling resistance for the 2 tires (TBC)
             :param grad: ratio
@@ -592,34 +594,24 @@ class Geppetto():
             :param Crr: 0.00321 for Continental GP5000 @6.9bar
             :return: [N]
             """
-            return 2. * Crr * np.cos(np.arctan(gradient)) * m * const.g
+            F_roll = 2. * Crr * np.cos(np.arctan(gradient)) * m * const.g
+            P_roll = F_roll * speed / (1.0 - L_dt)
+            return P_roll
 
-        def F_grav(gradient, m):
+        def P_grav(gradient, m, speed, L_dt=0.051):
             """
             :param gradient: ratio
             :param m: [kg]
             :return: [N]
             """
-            return np.sin(np.arctan(gradient)) * m * const.g
-
-        def P_needed(speed, altitude, T_C, gradient, m, L_dt=0.051):
-            """
-            :param speed: [m/s]
-            :param altitude: [m]
-            :param T_C: [°C]
-            :param gradient: ratio
-            :param m: [Kg]
-            :param L_dt:
-            :return:
-            """
-            F_resist = F_air(speed, altitude, T_C) + F_roll(gradient, m) + F_grav(gradient, m)
-            P_needed = F_resist * speed / (1.0 - L_dt)
-            return P_needed
+            F_grav = np.sin(np.arctan(gradient)) * m * const.g
+            P_grav = F_grav * speed / (1.0 - L_dt)
+            return P_grav
 
         # Work on a portion of the track
         assert interval[0] >= 0
         assert interval[1] >= 0
-        df_selection = self.df[trace_nr][['lon', 'lat', 'c_dist_geo2d', 'elev', 'c_speed', 'atemp']].copy()
+        df_selection = self.df[trace_nr][['time', 'lon', 'lat', 'c_dist_geo2d', 'elev', 'c_speed', 'atemp']].copy()
         if interval[1] == 0:
             df_selection = df_selection[df_selection["c_dist_geo2d"] >= interval[0]]
         else:
@@ -631,38 +623,67 @@ class Geppetto():
         df_selection['c_dist_delta'] = df_selection.c_dist_geo2d.diff().shift(-1)
         df_selection['c_gradient'] = df_selection['c_elev_delta'] / df_selection['c_dist_delta']
 
-        # print(df_selection)
+        if 0:
+            fig_5 = px.line(df_selection, x='c_dist_geo2d', y=['c_gradient', 'c_elev_delta', 'c_dist_delta'],
+                            template='plotly_dark')
+            fig_5.show()
 
-        # mph_vals = np.arange(4, 12.1, 0.1)
-        # grad_vals = np.arange(0.0, 0.25, 0.03)
-        # df = pd.DataFrame.from_records(data=[p for p in product(mph_vals, grad_vals)], columns=["speed", "gradient"])
+        # Filter
+        use_filter = 1
+        if use_filter:
+            window = 20
+            df_selection['c_speed'] = df_selection['c_speed'].rolling(window, center=True).mean()
+            df_selection['c_gradient'] = df_selection['c_gradient'].rolling(window, center=True).mean()
 
-        df_selection["power"] = df_selection.apply(lambda x: P_needed(x.c_speed, x.elev, x.atemp, x.c_gradient, 86),
-                                                   axis=1)
+        # Compute power contributions
+        df_selection["c_power_air"] = df_selection.apply(lambda x: P_air(x.c_speed,
+                                                                         x.elev,
+                                                                         x.atemp),
+                                                         axis=1)
+        df_selection["c_power_roll"] = df_selection.apply(lambda x: P_roll(x.c_gradient,
+                                                                           86,
+                                                                           x.c_speed),
+                                                          axis=1)
+        df_selection["c_power_grav"] = df_selection.apply(lambda x: P_grav(x.c_gradient,
+                                                                           86,
+                                                                           x.c_speed),
+                                                          axis=1)
+        df_selection["c_power"] = df_selection["c_power_air"] + df_selection["c_power_roll"] + df_selection[
+            "c_power_grav"]
 
         df_selection.fillna(0, inplace=True)
 
-        # Remove idle points and compare average speeds
-        df_pushing = df_selection[df_selection['power'] >= 0.0]
-
-        print("Average power: {} W".format(np.mean(df_pushing['power'])))
-
-        # print(df_selection)
-        # print(P_needed(30/3.6, 0, 86))
-
-        # calculate for me and my bike
-        # df['W/kg'] = [Wperkg(63.5, 8.0, a.speed, a.gradient) for a in df.itertuples()]
+        # Consider positive power only
+        df_pushing = df_selection[df_selection['c_power'] >= 0.0]
+        print("Average power: {} W".format(np.mean(df_pushing['c_power'])))
 
         # Plot
-        fig_cadence = go.Figure()
-        fig_cadence.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
-                                         y=df_selection["power"],
-                                         mode='lines'
-                                         )
-                              )
-        fig_cadence.update_layout(title="Power vs. Distance")
-        fig_cadence.update_layout(margin={"r": 40, "t": 40, "l": 40, "b": 40})
-        fig_cadence.show()
+        fig_power = go.Figure()
+        fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
+                                       y=df_selection["c_power_grav"],
+                                       name="Gravity",
+                                       hoverinfo='x+y',
+                                       mode='lines',
+                                       line=dict(width=0.5, color='green'),
+                                       stackgroup='one'
+                                       ))
+        fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
+                                       y=df_selection["c_power_air"],
+                                       name="Air",
+                                       hoverinfo='x+y',
+                                       mode='lines',
+                                       line=dict(width=0.5, color='lightblue'),
+                                       stackgroup='one'  # define stack group
+                                       ))
+        fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
+                                       y=df_selection["c_power_roll"],
+                                       name="Roll",
+                                       hoverinfo='x+y',
+                                       mode='lines',
+                                       line=dict(width=0.5, color='black'),
+                                       stackgroup='one'
+                                       ))
+        fig_power.show()
 
 
 def main():
@@ -684,15 +705,15 @@ def main():
     #                 plots=True)
     # geppetto.gradient(interval=[33739, 48124])
 
-    # lagastrello = Geppetto(["tracks/More_local_4_passes.gpx"], plots=False, debug=1, debug_plots=0)
+    lagastrello = Geppetto(["tracks/More_local_4_passes.gpx"], plots=False, debug=0, debug_plots=0)
     # lagastrello.gradient(interval=[94819, 106882])
     # lagastrello.cadence_speed_curve(interval=[0, 0])
-    # lagastrello.power_curve(interval=[0, 0])
+    lagastrello.estimate_power(interval=[0, 0])
 
-    arcana = Geppetto(["tracks/Local_passes_gravel_edition_W2_D2_.fit"], plots=False, debug=1, debug_plots=0)
+    # arcana = Geppetto(["tracks/Local_passes_gravel_edition_W2_D2_.fit"], plots=False, debug=1, debug_plots=0)
     # arcana.gradient(interval=[94819, 106882])
     # arcana.cadence_speed_curve(interval=[0, 0])
-    # arcana.power_curve(interval=[0, 0])
+    # arcana.estimate_power(interval=[0, 0])
 
 
 if __name__ == "__main__":
