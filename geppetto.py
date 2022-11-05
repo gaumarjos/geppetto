@@ -21,17 +21,16 @@ import gpxpy.gpx
 import plotly.express as px
 import pandas as pd
 from geopy import distance
-from math import sqrt, floor
+from math import sqrt
 import datetime
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import scipy.constants as const
 import os
 import fitdecode
-from itertools import product
 
 
-class Geppetto():
+class Geppetto:
     def __init__(self, files, plots=False, debug_plots=False, debug=False):
         """
         The object can load multiple gpx files at once. Useful when we want to plot multiple traces on the same map. The
@@ -166,6 +165,7 @@ class Geppetto():
 
         # Go through all files
         for file in files:
+            print()
             print("-------- Filename: {} --------".format(file))
 
             _, extension = os.path.splitext(file)
@@ -317,7 +317,6 @@ class Geppetto():
             # Once done, take the current df (local) and append it to the list of df's
             self.df.append(df)
             self.df_moving.append(df_moving)
-            print()
 
         # Map and elevation plots
         if plots:
@@ -328,6 +327,7 @@ class Geppetto():
                                                    mode='lines+markers',
                                                    marker=go.scattermapbox.Marker(size=6),
                                                    name=files[i],
+                                                   hovertext=df['c_dist_geo2d'],
                                                    )
                                   )
                 fig_map.update_layout(
@@ -423,109 +423,67 @@ class Geppetto():
         df_climb_subset['c_dist_delta'] = df_climb_subset.c_dist_geo2d_neg.diff().shift(-1)
         df_climb_subset['c_gradient'] = df_climb_subset['c_elev_delta'] / df_climb_subset['c_dist_delta'] * 100
 
-        # Option #1
-        # Plots in independent pages
-        if 0:
-            # Gradient
-            fig_gradient = go.Figure()
-            steps = np.flip(steps)
-            for i in range(len(steps) - 1):
-                portion = df_climb[
-                    (df_climb['c_dist_geo2d_neg'] >= steps[i]) & (df_climb['c_dist_geo2d_neg'] <= steps[i + 1])]
-                g = df_climb_subset['c_gradient'].iloc[i]
-                fig_c_gradient.add_trace(
-                    go.Scatter(x=portion['c_dist_geo2d_neg'], y=portion['elev'], fill='tozeroy',
-                               fillcolor=self.colorscale(g),
-                               mode='none', name='', showlegend=False))
-                fig_c_gradient.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']) + 10,
-                                              text="{:.1f}%".format(g),
-                                              showarrow=False,
-                                              arrowhead=1)
-            fig_c_gradient.show()
+        # Plots
+        fig = go.Figure()
+        # fig = make_subplots(
+        #     rows=1, cols=2,
+        #     column_widths=[0.9, 0.1]
+        # )
 
-            # Map
-            fig_map = go.Figure(go.Scattermapbox(lat=df_climb["lat"],
-                                                 lon=df_climb["lon"],
-                                                 mode='markers',
-                                                 marker=go.scattermapbox.Marker(size=6)))
-            fig_map.update_layout(mapbox_style="open-street-map")
-            fig_map.update_layout(
-                hovermode='closest',
-                mapbox=dict(
-                    bearing=0,
-                    center=go.layout.mapbox.Center(
-                        lat=np.mean(df_climb["lat"]),
-                        lon=np.mean(df_climb["lon"])
-                    ),
-                    pitch=0,
-                    zoom=11
-                )
-            )
-            fig_map.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
-            fig_map.show()
-
-        # Option #2
-        # Plots in the same page
-        if 1:
-            fig = make_subplots(
-                rows=1, cols=2,
-                column_widths=[0.6, 0.4]
-            )
-
-            # Gradient (1,1)
-            steps = np.flip(steps)
-            for i in range(len(steps) - 1):
-                portion = df_climb[
-                    (df_climb['c_dist_geo2d_neg'] >= steps[i]) & (df_climb['c_dist_geo2d_neg'] <= steps[i + 1])]
-                g = df_climb_subset['c_gradient'].iloc[i]
-                fig.add_trace(go.Scatter(x=portion['c_dist_geo2d_neg'],
-                                         y=portion['elev'],
-                                         fill='tozeroy',
-                                         fillcolor=self.colorscale(g),
-                                         mode='none',
-                                         name='',
-                                         showlegend=False),
-                              row=1,
-                              col=1
-                              )
-                fig.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']) + 10,
-                                   text="{:.1f}".format(g),
-                                   showarrow=True,
-                                   arrowhead=0)
-
-            # Map (1,2)
-            fig.add_trace(go.Scattermapbox(lat=df_climb["lat"],
-                                           lon=df_climb["lon"],
-                                           mode='lines+markers',
-                                           line=dict(
-                                               width=2,
-                                               color="gray",
-                                           ),
-                                           marker=go.scattermapbox.Marker(size=6,
-                                                                          color=df_climb["elev"],
-                                                                          colorscale=px.colors.sequential.Bluered),
-                                           subplot='mapbox2',
-                                           name='',
-                                           showlegend=False
-                                           )
+        # Gradient (1,1)
+        steps = np.flip(steps)
+        for i in range(len(steps) - 1):
+            portion = df_climb[
+                (df_climb['c_dist_geo2d_neg'] >= steps[i]) & (df_climb['c_dist_geo2d_neg'] <= steps[i + 1])]
+            g = df_climb_subset['c_gradient'].iloc[i]
+            fig.add_trace(go.Scatter(x=portion['c_dist_geo2d_neg'],
+                                     y=portion['elev'],
+                                     fill='tozeroy',
+                                     fillcolor=self.colorscale(g),
+                                     mode='none',
+                                     name='',
+                                     showlegend=False),
+                          #row=1,
+                          #col=1
                           )
-            fig.update_layout(
-                hovermode='closest',
-                mapbox2=dict(
-                    style="open-street-map",
-                    domain={'x': [0.55, 1.0], 'y': [0, 1]},
-                    bearing=0,
-                    center=go.layout.mapbox.Center(
-                        lat=np.mean(df_climb["lat"]),
-                        lon=np.mean(df_climb["lon"])
-                    ),
-                    pitch=0,
-                    zoom=11
-                )
-            )
-            fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+            fig.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']) + 10,
+                               text="{:.1f}".format(g),
+                               showarrow=False,
+                               arrowhead=0)
 
-            fig.show()
+        # Map (1,2)
+        fig.add_trace(go.Scattermapbox(lat=df_climb["lat"],
+                                       lon=df_climb["lon"],
+                                       mode='lines+markers',
+                                       hovertext=df_climb["c_dist_geo2d_neg"],
+                                       line=dict(
+                                           width=2,
+                                           color="gray",
+                                       ),
+                                       marker=go.scattermapbox.Marker(size=6,
+                                                                      color=df_climb["elev"],
+                                                                      colorscale=px.colors.sequential.Bluered),
+                                       subplot='mapbox2',
+                                       name='',
+                                       showlegend=False
+                                       )
+                      )
+        fig.update_layout(
+            hovermode='closest',
+            mapbox2=dict(
+                style="open-street-map",
+                domain={'x': [0.66, 0.99], 'y': [0.01, 0.33]},
+                bearing=0,
+                center=go.layout.mapbox.Center(
+                    lat=np.mean(df_climb["lat"]),
+                    lon=np.mean(df_climb["lon"])
+                ),
+                pitch=0,
+                zoom=11
+            )
+        )
+        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+        fig.show()
 
     def cadence_speed_curve(self, interval=(0, 0), trace_nr=0):
         """
@@ -585,9 +543,10 @@ class Geppetto():
             """
             :param speed: [m/s]
             :param altitude: [m]
-            :param T: [K]
-            :param CdA:
-            :return: [N]
+            :param T_C: [°C]
+            :param CdA: Coefficient of drag * area, to be estimated based
+            :param L_dt: pedaling and drivetrain efficiency
+            :return: [W]
             """
             # Air density
             L = 0.0065
@@ -605,10 +564,11 @@ class Geppetto():
         def P_roll(gradient, m, speed, Crr=0.00321, L_dt=0.051):
             """
             Estimate rolling resistance for the 2 tires (TBC)
-            :param grad: ratio
+            :param gradient: ratio
             :param m: [kg]
             :param Crr: 0.00321 for Continental GP5000 @6.9bar
-            :return: [N]
+            :param L_dt: pedaling and drivetrain efficiency
+            :return: [W]
             """
             F_roll = 2. * Crr * np.cos(np.arctan(gradient)) * m * const.g
             P_roll = F_roll * speed / (1.0 - L_dt)
@@ -618,7 +578,9 @@ class Geppetto():
             """
             :param gradient: ratio
             :param m: [kg]
-            :return: [N]
+            :param speed: [m/s]
+            :param L_dt: pedaling and drivetrain efficiency
+            :return: [W]
             """
             F_grav = np.sin(np.arctan(gradient)) * m * const.g
             P_grav = F_grav * speed / (1.0 - L_dt)
@@ -719,10 +681,24 @@ def main():
     #                  ],
     #                 plots=True)
 
-    alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], plots=0, debug=0, debug_plots=0)
-    alpe.gradient(interval=[33739, 48124])
-    alpe.estimate_power(interval=[33739, 48124])
-    alpe.estimate_power(interval=[0, 0])
+    if 0:
+        alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], plots=0, debug=0, debug_plots=0)
+        alpe.gradient(interval=[33739, 48124])
+        # alpe.estimate_power(interval=[33739, 48124])
+        # alpe.estimate_power(interval=[0, 0])
+
+    if 0:
+        nederland = Geppetto(["tracks/Nederland.gpx"], plots=0, debug=0, debug_plots=0)
+        nederland.gradient()
+        nederland.cadence_speed_curve()
+
+    if 0:
+        cagazzone = Geppetto(["tracks/CaCa.gpx"], plots=0, debug=0, debug_plots=0)
+        cagazzone.gradient(interval=[7274, 12667], resolution=200)
+
+    if 0:
+        votigno = Geppetto(["tracks/Broletto_salita_di_Votigno_e_Canossa.gpx"], plots=0, debug=0, debug_plots=0)
+        votigno.gradient(interval=[17676, 20572], resolution=200)
 
     # lagastrello = Geppetto(["tracks/More_local_4_passes.gpx"], plots=False, debug=0, debug_plots=0)
     # lagastrello.gradient(interval=[94819, 106882])
