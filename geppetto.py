@@ -369,32 +369,51 @@ class Geppetto():
         i = np.digitize(g, a)
         return "rgb({},{},{})".format(int(red[i]), int(green[i]), int(blue[i]))
 
-    def gradient(self, interval, resolution=500, trace_nr=0):
+    def copy_segment(self, columns, interval=(0, 0), trace_nr=0):
+        """
+        Return a portion of one trace of the list of Dataframes
+        :param columns: columns that will be copied, it makes no sense to copy all because that will complicate
+        operations such as interpolate unnecessarily
+        :param interval: extremes (included) of the segment, in m
+        :param trace_nr: the position of the trace in the array of Dataframes
+        :return:
+        """
+        # Select only the points belonging to the climb
+        assert interval[0] >= 0
+        assert interval[1] >= 0
+        df_segment = self.df[trace_nr][columns].copy()
+        if interval[1] == 0:
+            df_segment = df_segment[df_segment["c_dist_geo2d"] >= interval[0]]
+        else:
+            df_segment = df_segment[
+                (df_segment["c_dist_geo2d"] >= interval[0]) & (df_segment["c_dist_geo2d"] <= interval[1])]
+        return df_segment
+
+    def gradient(self, interval=(0, 0), resolution=1000, trace_nr=0):
         """
         This method operates on only one trace
         :param interval: [start_meter, end_meter]
-        :param resolution: the "step" in which the gradiane tis calculated/averaged, in meters
+        :param resolution: the "step" in which the gradient tis calculated/averaged, in meters
         :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
         :return: plots
         """
 
         # Select only the points belonging to the climb
-        assert interval[0] >= 0
-        assert interval[1] >= 0
-        df_climb = self.df[trace_nr][['lon', 'lat', 'c_dist_geo2d', 'elev']].copy()
-        if interval[1] == 0:
-            df_climb = df_climb[df_climb["c_dist_geo2d"] >= interval[0]]
-        else:
-            df_climb = df_climb[(df_climb["c_dist_geo2d"] >= interval[0]) & (df_climb["c_dist_geo2d"] <= interval[1])]
+        df_climb = self.copy_segment(columns=["lon", "lat", "c_dist_geo2d", "elev"],
+                                     interval=interval,
+                                     trace_nr=trace_nr)
+
+        # Count distance backward from the end (top of the climb)
         df_climb['c_dist_geo2d_neg'] = -(df_climb["c_dist_geo2d"].iloc[-1] - df_climb["c_dist_geo2d"])
 
+        # Add points corresponding to "round" steps
         steps = np.arange(0, np.min(df_climb['c_dist_geo2d_neg']), -resolution)
         steps = np.append(steps, np.min(df_climb['c_dist_geo2d_neg']))
-
         for step in steps[1:-1]:
             df_climb = pd.concat([df_climb, pd.DataFrame(data={'c_dist_geo2d_neg': step}, index=[0])],
                                  axis=0, join='outer', ignore_index=True)
 
+        # Interpolate their values
         df_climb = df_climb.sort_values(by='c_dist_geo2d_neg')
         df_climb = df_climb.interpolate(method='linear', limit_direction='backward', limit=1)
 
@@ -508,7 +527,7 @@ class Geppetto():
 
             fig.show()
 
-    def cadence_speed_curve(self, interval, trace_nr=0):
+    def cadence_speed_curve(self, interval=(0, 0), trace_nr=0):
         """
         This method operates on only one trace
         :param interval: [start_meter, end_meter]
@@ -516,14 +535,10 @@ class Geppetto():
         :return: plots
         """
 
-        # Select only the points belonging to the climb
-        assert interval[0] >= 0
-        assert interval[1] >= 0
-        df_climb = self.df[trace_nr][['lon', 'lat', 'c_dist_geo2d', 'elev', 'cad', 'c_speed', 'hr']].copy()
-        if interval[1] == 0:
-            df_climb = df_climb[df_climb["c_dist_geo2d"] >= interval[0]]
-        else:
-            df_climb = df_climb[(df_climb["c_dist_geo2d"] >= interval[0]) & (df_climb["c_dist_geo2d"] <= interval[1])]
+        # Work on a portion of the track
+        df_selection = self.copy_segment(columns=['lon', 'lat', 'c_dist_geo2d', 'elev', 'cad', 'c_speed', 'hr'],
+                                         interval=interval,
+                                         trace_nr=trace_nr)
 
         cadence = np.linspace(0, 110, 100)
         gears = [50. / 11., 50. / 12., 50. / 13, 50. / 14., 50. / 16., 50. / 18, 50. / 20., 50. / 22., 50. / 25,
@@ -532,12 +547,12 @@ class Geppetto():
 
         # Plot
         fig_cadence = go.Figure()
-        fig_cadence.add_trace(go.Scatter(x=df_climb["cad"],
-                                         y=df_climb["c_speed"],
+        fig_cadence.add_trace(go.Scatter(x=df_selection["cad"],
+                                         y=df_selection["c_speed"],
                                          mode='markers',
                                          name="Measured",
                                          marker=go.scatter.Marker(size=6,
-                                                                  color=df_climb["hr"],
+                                                                  color=df_selection["hr"],
                                                                   colorscale=px.colors.sequential.Bluered),
                                          )
                               )
@@ -558,7 +573,7 @@ class Geppetto():
         fig_cadence.update_layout(margin={"r": 40, "t": 40, "l": 40, "b": 40})
         fig_cadence.show()
 
-    def estimate_power(self, interval, trace_nr=0):
+    def estimate_power(self, interval=(0, 0), trace_nr=0):
         """
         This method operates on only one trace
         :param interval: [start_meter, end_meter]
@@ -610,14 +625,9 @@ class Geppetto():
             return P_grav
 
         # Work on a portion of the track
-        assert interval[0] >= 0
-        assert interval[1] >= 0
-        df_selection = self.df[trace_nr][['time', 'lon', 'lat', 'c_dist_geo2d', 'elev', 'c_speed', 'atemp']].copy()
-        if interval[1] == 0:
-            df_selection = df_selection[df_selection["c_dist_geo2d"] >= interval[0]]
-        else:
-            df_selection = df_selection[
-                (df_selection["c_dist_geo2d"] >= interval[0]) & (df_selection["c_dist_geo2d"] <= interval[1])]
+        df_selection = self.copy_segment(columns=['time', 'lon', 'lat', 'c_dist_geo2d', 'elev', 'c_speed', 'atemp'],
+                                         interval=interval,
+                                         trace_nr=trace_nr)
 
         # Compute gradient
         df_selection['c_elev_delta'] = df_selection.elev.diff().shift(-1)
@@ -669,7 +679,7 @@ class Geppetto():
                                        name="Gravity",
                                        hoverinfo='x+y',
                                        mode='lines',
-                                       line=dict(width=0.5, color='green'),
+                                       line=dict(width=0.0, color='green'),
                                        stackgroup='one'
                                        ))
         fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
@@ -677,7 +687,7 @@ class Geppetto():
                                        name="Air",
                                        hoverinfo='x+y',
                                        mode='lines',
-                                       line=dict(width=0.5, color='lightblue'),
+                                       line=dict(width=0.0, color='lightblue'),
                                        stackgroup='one'  # define stack group
                                        ))
         fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
@@ -685,7 +695,7 @@ class Geppetto():
                                        name="Roll",
                                        hoverinfo='x+y',
                                        mode='lines',
-                                       line=dict(width=0.5, color='black'),
+                                       line=dict(width=2.0, color='black'),
                                        stackgroup='one'
                                        ))
         fig_power.show()
@@ -709,9 +719,8 @@ def main():
     #                  ],
     #                 plots=True)
 
-    alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], plots=False, debug=0, debug_plots=0)
+    alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], plots=0, debug=0, debug_plots=0)
     alpe.gradient(interval=[33739, 48124])
-    # alpe.cadence_speed_curve(interval=[0, 0])
     alpe.estimate_power(interval=[33739, 48124])
     alpe.estimate_power(interval=[0, 0])
 
