@@ -269,7 +269,7 @@ class Geppetto:
             df.fillna(0, inplace=True)
 
             # Look at c_delta_geo3d and c_delta_time over time and see if everything makes sense
-            if 0:
+            if debug_plots:
                 fig_c_delta_geo3d = px.line(df, x='time', y='c_delta_geo3d')
                 fig_c_delta_geo3d.show()
                 fig_c_delta_time = px.line(df, x='time', y='c_delta_time')
@@ -320,20 +320,25 @@ class Geppetto:
 
         # Map and elevation plots
         if plots:
-            fig_map = go.Figure()
+            fig = make_subplots(
+                rows=2, cols=1,
+                row_heights=[0.75, 0.25]
+            )
             for i, df in enumerate(self.df):
-                fig_map.add_trace(go.Scattermapbox(lat=df["lat"],
-                                                   lon=df["lon"],
-                                                   mode='lines+markers',
-                                                   marker=go.scattermapbox.Marker(size=6),
-                                                   name=files[i],
-                                                   hovertext=df['c_dist_geo2d'],
-                                                   )
-                                  )
-                fig_map.update_layout(
+                fig.add_trace(go.Scattermapbox(lat=df["lat"],
+                                               lon=df["lon"],
+                                               mode='lines+markers',
+                                               marker=go.scattermapbox.Marker(size=6),
+                                               name=files[i],
+                                               hovertext=df['c_dist_geo2d'],
+                                               subplot='mapbox',
+                                               )
+                              )
+                fig.update_layout(
                     hovermode='closest',
                     mapbox=dict(
                         style="open-street-map",
+                        domain={'x': [0.0, 1.0], 'y': [0.25, 1.0]},
                         bearing=0,
                         center=go.layout.mapbox.Center(
                             lat=np.mean(df["lat"]),
@@ -343,19 +348,18 @@ class Geppetto:
                         zoom=11
                     )
                 )
-            fig_map.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
-            fig_map.show()
 
-            fig_elev = go.Figure()
             for i, df in enumerate(self.df):
-                fig_elev.add_trace(go.Scatter(x=df["c_dist_geo2d"],
-                                              y=df["elev"],
-                                              mode='lines+markers',
-                                              name=files[i],
-                                              )
-                                   )
-            fig_elev.update_layout(margin={"r": 0, "t": 20, "l": 0, "b": 0})
-            fig_elev.show()
+                fig.add_trace(go.Scatter(x=df["c_dist_geo2d"],
+                                         y=df["elev"],
+                                         mode='lines+markers',
+                                         name=files[i],
+                                         ),
+                              row=2,
+                              col=1
+                              )
+            fig.update_layout(margin={"r": 0, "t": 20, "l": 0, "b": 0})
+            fig.show()
 
     @staticmethod
     def colorscale(g):
@@ -443,8 +447,8 @@ class Geppetto:
                                      mode='none',
                                      name='',
                                      showlegend=False),
-                          #row=1,
-                          #col=1
+                          # row=1,
+                          # col=1
                           )
             fig.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']) + 10,
                                text="{:.1f}".format(g),
@@ -668,22 +672,24 @@ def main():
     Main function
     :return: nothing
     """
-    # geppetto = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx",
-    #                  "tracks/Local_passes_gravel_edition_.gpx",
-    #                  "tracks/Two_more_W20_D3_.gpx",
-    #                  "tracks/The_local_4_or_5_passes.gpx",
-    #                  "tracks/More_local_passes_W17_D3_.gpx",
-    #                  "tracks/More_local_4_passes.gpx",
-    #                  "tracks/More_and_more_local_passes_W19_D3_.gpx",
-    #                  "tracks/Even_more_local_passes.gpx",
-    #                  "tracks/Cisa_e_Cirone.gpx",
-    #                  "tracks/Autumnal_chestnut_trees_Cisa_and_Brattello.gpx",
-    #                  ],
-    #                 plots=True)
+
+    if 1:
+        geppetto = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx",
+                             "tracks/Local_passes_gravel_edition_.gpx",
+                             "tracks/Two_more_W20_D3_.gpx",
+                             "tracks/The_local_4_or_5_passes.gpx",
+                             "tracks/More_local_passes_W17_D3_.gpx",
+                             "tracks/More_local_4_passes.gpx",
+                             "tracks/More_and_more_local_passes_W19_D3_.gpx",
+                             "tracks/Even_more_local_passes.gpx",
+                             "tracks/Cisa_e_Cirone.gpx",
+                             "tracks/Autumnal_chestnut_trees_Cisa_and_Brattello.gpx",
+                             ],
+                            plots=True)
 
     if 0:
-        alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], plots=0, debug=0, debug_plots=0)
-        alpe.gradient(interval=[33739, 48124])
+        alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], plots=1, debug=0, debug_plots=0)
+        alpe.gradient(interval=[33739, 48124], resolution=500)
         # alpe.estimate_power(interval=[33739, 48124])
         # alpe.estimate_power(interval=[0, 0])
 
@@ -700,15 +706,17 @@ def main():
         votigno = Geppetto(["tracks/Broletto_salita_di_Votigno_e_Canossa.gpx"], plots=0, debug=0, debug_plots=0)
         votigno.gradient(interval=[17676, 20572], resolution=200)
 
-    # lagastrello = Geppetto(["tracks/More_local_4_passes.gpx"], plots=False, debug=0, debug_plots=0)
-    # lagastrello.gradient(interval=[94819, 106882])
-    # lagastrello.cadence_speed_curve(interval=[0, 0])
-    # lagastrello.estimate_power(interval=[0, 0])
+    if 0:
+        lagastrello = Geppetto(["tracks/More_local_4_passes.gpx"], plots=False, debug=0, debug_plots=0)
+        lagastrello.gradient(interval=[94819, 106882])
+        lagastrello.cadence_speed_curve(interval=[0, 0])
+        lagastrello.estimate_power(interval=[0, 0])
 
-    # arcana = Geppetto(["tracks/Local_passes_gravel_edition_W2_D2_.fit"], plots=False, debug=1, debug_plots=0)
-    # arcana.gradient(interval=[94819, 106882])
-    # arcana.cadence_speed_curve(interval=[0, 0])
-    # arcana.estimate_power(interval=[0, 0])
+    if 0:
+        arcana = Geppetto(["tracks/Local_passes_gravel_edition_W2_D2_.fit"], plots=False, debug=1, debug_plots=0)
+        arcana.gradient(interval=[94819, 106882])
+        arcana.cadence_speed_curve(interval=[0, 0])
+        arcana.estimate_power(interval=[0, 0])
 
 
 if __name__ == "__main__":
