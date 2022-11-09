@@ -8,11 +8,15 @@ Maths
 https://thatmaceguy.github.io/python/gps-data-analysis-intro/
 https://rkurchin.github.io/posts/2020/05/ftp
 
-Graphics
+Plotly
 https://plotly.com/python/mapbox-layers/
 https://plotly.com/python/builtin-colorscales/
 https://github.com/plotly/plotly.py/issues/1728
 https://plotly.com/python/filled-area-plots/
+https://plotly.com/python/mapbox-layers/#using-layoutmapboxlayers-to-specify-a-base-map
+
+Dash
+https://dash.plotly.com/interactive-graphing
 """
 
 import numpy as np
@@ -31,7 +35,7 @@ import fitdecode
 
 
 class Geppetto:
-    def __init__(self, files, plots=False, debug_plots=False, debug=False):
+    def __init__(self, files, plots=False, debug_plots=False, debug=False, csv=False):
         """
         The object can load multiple gpx files at once. Useful when we want to plot multiple traces on the same map. The
         processing is done independently using local variables and the results are then appended to a class variable.
@@ -168,7 +172,7 @@ class Geppetto:
             print()
             print("-------- Filename: {} --------".format(file))
 
-            _, extension = os.path.splitext(file)
+            name, extension = os.path.splitext(file)
             if extension == ".gpx":
                 df = import_gpx(file)
             elif extension == ".fit":
@@ -176,6 +180,9 @@ class Geppetto:
             else:
                 print("Not a recognised file format, skipping.")
                 continue
+
+            if csv:
+                df.to_csv("{}.csv".format(name))
 
             if debug:
                 print(df)
@@ -294,9 +301,9 @@ class Geppetto:
             print("Moving Time: {}".format(str(datetime.timedelta(seconds=sum(df_moving['c_delta_time'])))))
 
             # Coarsely filter speed to remove outliers (this is a bad way to do it, a Kalman filter should be used)
-            df['avg_speed_roll'] = df['c_speed'].rolling(20, center=True).mean()
+            df['c_speed_filtered'] = df['c_speed'].rolling(20, center=True).mean()
             if debug_plots:
-                fig_5 = px.line(df, x='time', y=['c_speed', 'avg_speed_roll'],
+                fig_5 = px.line(df, x='time', y=['c_speed', 'c_speed_filtered'],
                                 template='plotly_dark')
                 fig_5.show()
 
@@ -543,6 +550,9 @@ class Geppetto:
         :return: plots
         """
 
+        m = 76 + 1 + 1.5 + 8
+
+
         def P_air(speed, altitude, T_C, CdA=0.28, L_dt=0.051):
             """
             :param speed: [m/s]
@@ -570,7 +580,7 @@ class Geppetto:
             Estimate rolling resistance for the 2 tires (TBC)
             :param gradient: ratio
             :param m: [kg]
-            :param Crr: 0.00321 for Continental GP5000 @6.9bar
+            :param Crr: 0.00321 for one Continental GP5000 @6.9bar
             :param L_dt: pedaling and drivetrain efficiency
             :return: [W]
             """
@@ -591,7 +601,7 @@ class Geppetto:
             return P_grav
 
         # Work on a portion of the track
-        df_selection = self.copy_segment(columns=['time', 'lon', 'lat', 'c_dist_geo2d', 'elev', 'c_speed', 'atemp'],
+        df_selection = self.copy_segment(columns=['time', 'lon', 'lat', 'c_dist_geo2d', 'elev', 'c_speed', 'atemp', 'hr'],
                                          interval=interval,
                                          trace_nr=trace_nr)
 
@@ -608,7 +618,7 @@ class Geppetto:
         # Filter
         use_filter = 1
         if use_filter:
-            window = 20
+            window = 4
             df_selection['c_speed'] = df_selection['c_speed'].rolling(window, center=True).mean()
             df_selection['c_gradient'] = df_selection['c_gradient'].rolling(window, center=True).mean()
 
@@ -618,11 +628,11 @@ class Geppetto:
                                                                          x.atemp),
                                                          axis=1)
         df_selection["c_power_roll"] = df_selection.apply(lambda x: P_roll(x.c_gradient,
-                                                                           86,
+                                                                           m,
                                                                            x.c_speed),
                                                           axis=1)
         df_selection["c_power_grav"] = df_selection.apply(lambda x: P_grav(x.c_gradient,
-                                                                           86,
+                                                                           m,
                                                                            x.c_speed),
                                                           axis=1)
         df_selection["c_power"] = df_selection["c_power_air"] + df_selection["c_power_roll"] + df_selection[
@@ -639,7 +649,9 @@ class Geppetto:
         print("Average power: {} W".format(np.mean(df_selection['c_power'])))
 
         # Plot
-        fig_power = go.Figure()
+        # fig_power = go.Figure()
+        fig_power = make_subplots(rows=2, cols=1, shared_xaxes=True)
+
         fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
                                        y=df_selection["c_power_grav"],
                                        name="Gravity",
@@ -647,7 +659,9 @@ class Geppetto:
                                        mode='lines',
                                        line=dict(width=0.0, color='green'),
                                        stackgroup='one'
-                                       ))
+                                       ),
+                            row=1,
+                            col=1)
         fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
                                        y=df_selection["c_power_air"],
                                        name="Air",
@@ -655,7 +669,9 @@ class Geppetto:
                                        mode='lines',
                                        line=dict(width=0.0, color='lightblue'),
                                        stackgroup='one'  # define stack group
-                                       ))
+                                       ),
+                            row=1,
+                            col=1)
         fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
                                        y=df_selection["c_power_roll"],
                                        name="Roll",
@@ -663,7 +679,21 @@ class Geppetto:
                                        mode='lines',
                                        line=dict(width=2.0, color='black'),
                                        stackgroup='one'
-                                       ))
+                                       ),
+                            row=1,
+                            col=1)
+        fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
+                                       y=df_selection["hr"],
+                                       name="HR",
+                                       hoverinfo='x+y',
+                                       mode='lines',
+                                       line=dict(width=1.0, color='red'),
+                                       ),
+                            row=2,
+                            col=1)
+        fig_power.update_yaxes(showspikes=True)
+        fig_power.update_xaxes(showspikes=True, title="Distance (m)")
+        #fig_power.update_traces(xaxis="x")
         fig_power.show()
 
 
@@ -673,7 +703,7 @@ def main():
     :return: nothing
     """
 
-    if 1:
+    if 0:
         geppetto = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx",
                              "tracks/Local_passes_gravel_edition_.gpx",
                              "tracks/Two_more_W20_D3_.gpx",
@@ -687,11 +717,11 @@ def main():
                              ],
                             plots=True)
 
-    if 0:
-        alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], plots=1, debug=0, debug_plots=0)
+    if 1:
+        alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], plots=0, debug=0, debug_plots=0, csv=1)
         alpe.gradient(interval=[33739, 48124], resolution=500)
         # alpe.estimate_power(interval=[33739, 48124])
-        # alpe.estimate_power(interval=[0, 0])
+        alpe.estimate_power(interval=[0, 0])
 
     if 0:
         nederland = Geppetto(["tracks/Nederland.gpx"], plots=0, debug=0, debug_plots=0)
