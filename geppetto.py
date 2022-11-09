@@ -181,9 +181,6 @@ class Geppetto:
                 print("Not a recognised file format, skipping.")
                 continue
 
-            if csv:
-                df.to_csv("{}.csv".format(name))
-
             if debug:
                 print(df)
                 print(df.describe())
@@ -324,6 +321,10 @@ class Geppetto:
             # Once done, take the current df (local) and append it to the list of df's
             self.df.append(df)
             self.df_moving.append(df_moving)
+
+            # Save to CSV for further processing (it's going to be faster even than just reimporting a GPX)
+            if csv:
+                df.to_csv("{}.csv".format(name))
 
         # Map and elevation plots
         if plots:

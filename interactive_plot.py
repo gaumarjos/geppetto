@@ -13,41 +13,7 @@ df = pd.read_csv('https://plotly.github.io/datasets/country_indicators.csv')
 mydf = pd.read_csv('tracks/The_missing_pass_W3_D2_.csv')
 
 app.layout = html.Div([
-    # First row, controls
 
-    html.Div([
-
-        html.Div([
-            dcc.Dropdown(
-                df['Indicator Name'].unique(),
-                'Fertility rate, total (births per woman)',
-                id='crossfilter-xaxis-column',
-            ),
-            dcc.RadioItems(
-                ['Linear', 'Log'],
-                'Linear',
-                id='crossfilter-xaxis-type',
-                labelStyle={'display': 'inline-block', 'marginTop': '5px'}
-            )
-        ],
-            style={'width': '49%', 'display': 'inline-block'}),
-
-        html.Div([
-            dcc.Dropdown(
-                df['Indicator Name'].unique(),
-                'Life expectancy at birth, total (years)',
-                id='crossfilter-yaxis-column'
-            ),
-            dcc.RadioItems(
-                ['Linear', 'Log'],
-                'Linear',
-                id='crossfilter-yaxis-type',
-                labelStyle={'display': 'inline-block', 'marginTop': '5px'}
-            )
-        ], style={'width': '49%', 'float': 'right', 'display': 'inline-block'})
-    ], style={
-        'padding': '10px 5px'
-    }),
 
     # Second row, plots
     html.Div([
@@ -89,16 +55,10 @@ app.layout = html.Div([
 
 @app.callback(
     Output('map_graph', 'figure'),
-    Input('crossfilter-xaxis-column', 'value'),
-    Input('crossfilter-yaxis-column', 'value'),
-    Input('crossfilter-xaxis-type', 'value'),
-    Input('crossfilter-yaxis-type', 'value'),
     Input('crossfilter-year--slider', 'value'),
     Input('elevation_graph', 'selectedData'),
 )
-def update_map(xaxis_column_name, yaxis_column_name,
-               xaxis_type, yaxis_type,
-               year_value,
+def update_map(year_value,
                selected_points):
     dff = df[df['Year'] == year_value]
 
@@ -106,7 +66,7 @@ def update_map(xaxis_column_name, yaxis_column_name,
     if selected_points is not None:
         selected_indexes = [d['pointIndex'] for d in selected_points['points']]
 
-    if 1:
+    if 0:
         if len(selected_indexes) > 0:
             fig = px.scatter(x=mydf.iloc[selected_indexes]['lon'],
                              y=mydf.iloc[selected_indexes]['lat'],
@@ -122,27 +82,25 @@ def update_map(xaxis_column_name, yaxis_column_name,
                              # hover_name=dff[dff['Indicator Name'] == yaxis_column_name]['Country Name']
                              )
     else:
-        print("updating")
         if len(selected_indexes) > 0:
-            data = [go.Scattermapbox(
-                lat=mydf.iloc[selected_indexes]['lat'],
-                lon=mydf.iloc[selected_indexes]['lon'],
-                mode='markers',
-                marker=dict(
-                    size=8,
-                    color='red',
-                    opacity=.3)
-            )]
+            print("should be partial")
+            print(selected_indexes)
+            data = [go.Scattermapbox(lat=mydf.iloc[selected_indexes]['lat'],
+                                     lon=mydf.iloc[selected_indexes]['lon'],
+                                     mode='markers',
+                                     marker=dict(
+                                         size=8,
+                                         color='yellow',
+                                         opacity=1.0)
+                                     )]
         else:
-            data = [go.Scattermapbox(
-                lat=mydf['lat'],
-                lon=mydf['lon'],
-                mode='markers',
-                marker=dict(
-                    size=8,
-                    color='red',
-                    opacity=.3)
-            )]
+            data = [go.Scattermapbox(lat=mydf['lat'],
+                                     lon=mydf['lon'],
+                                     mode='lines',
+                                     line=dict(
+                                         width=2,
+                                         color='red')
+                                     )]
 
         layout = go.Layout(autosize=False,
                            mapbox=dict(bearing=0,
@@ -154,17 +112,19 @@ def update_map(xaxis_column_name, yaxis_column_name,
                                        ),
                                        # accesstoken=map_token,
                                        style="open-street-map"),
+                           margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
+                           hovermode='closest'
                            )
 
         fig = go.Figure(data=data, layout=layout)
 
     # fig.update_traces(customdata=dff[dff['Indicator Name'] == yaxis_column_name]['Country Name'])
 
-    fig.update_xaxes(title=xaxis_column_name, type='linear' if xaxis_type == 'Linear' else 'log')
+    #fig.update_xaxes(title=xaxis_column_name, type='linear' if xaxis_type == 'Linear' else 'log')
 
-    fig.update_yaxes(title=yaxis_column_name, type='linear' if yaxis_type == 'Linear' else 'log')
+    #fig.update_yaxes(title=yaxis_column_name, type='linear' if yaxis_type == 'Linear' else 'log')
 
-    fig.update_layout(margin={'l': 40, 'b': 40, 't': 10, 'r': 0}, hovermode='closest')
+    #fig.update_layout()
 
     return fig
 
@@ -175,7 +135,6 @@ def update_map(xaxis_column_name, yaxis_column_name,
 def update_elevation_graph(hoverData):
     title = "Elevation"
     hover_index = None
-    print(hoverData)
     if hoverData is not None:
         hover_index = hoverData['points'][0]['pointIndex']
     fig = go.Figure()
