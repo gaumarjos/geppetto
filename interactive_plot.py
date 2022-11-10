@@ -13,55 +13,64 @@ df = pd.read_csv('https://plotly.github.io/datasets/country_indicators.csv')
 mydf = pd.read_csv('tracks/The_missing_pass_W3_D2_.csv')
 
 app.layout = html.Div([
-
-
-    # Second row, plots
-    html.Div([
-        dcc.Graph(
-            id='map_graph',
-        )
-    ], style={'width': '49%', 'display': 'inline-block', 'padding': '0 20'}),
-
-    html.Div([
-        dcc.Graph(id='elevation_graph'),
-        dcc.Graph(id='hr_graph'),
-    ], style={'display': 'inline-block', 'width': '49%'}),
-
-    html.Div(dcc.Slider(
-        df['Year'].min(),
-        df['Year'].max(),
-        step=None,
-        id='crossfilter-year--slider',
-        value=df['Year'].max(),
-        marks={str(year): str(year) for year in df['Year'].unique()}
-    ), style={'width': '49%', 'padding': '0px 20px 20px 20px'}),
-
-    html.Div([
-        dcc.Markdown("""
-                **Selection Data**
-
-                Choose the lasso or rectangle tool in the graph's menu
-                bar and then select points in the graph.
-
-                Note that if `layout.clickmode = 'event+select'`, selection data also
-                accumulates (or un-accumulates) selected data if you hold down the shift
-                button while clicking.
-            """),
-        html.Pre(id='selected-data'),
-    ], className='three columns'),
+    html.Table([
+        html.Thead([
+            html.Tr([
+                html.Th([
+                    "Geppetto"
+                ])
+            ])
+        ]),
+        html.Tbody([
+            html.Tr([
+                html.Td([
+                    html.Div([
+                        dcc.Graph(id='map_graph'),
+                        dcc.Graph(id='elevation_graph'),
+                        dcc.Graph(id='hr_graph')
+                    ],
+                        style={'width': '100%',
+                               'height': '100%',
+                               'padding': '0 0',
+                               'float': 'left'},
+                        id="left_col"),
+                ],
+                    style={'width': '50%'}),
+                html.Td([
+                    html.Div([
+                        html.Div([
+                            html.Button('Analyze', id='btn-analyze', n_clicks=0)
+                        ],
+                            id="buttons"),
+                        html.Div([
+                            dcc.Graph(id='power_graph'),
+                            dcc.Graph(id='gradient_graph')
+                        ],
+                            id="analyses"),
+                        html.Div([
+                            html.Pre(id='selected-data')],
+                            id="debug")
+                    ],
+                        style={'width': '100%',
+                               'height': '100%',
+                               'padding': '0 0',
+                               'float': 'right'},
+                        id="right_col"),
+                ],
+                    style={'width': '50%'})
+            ])
+        ]),
+    ],
+        style={"width": "100%"}),
 
 ])
 
 
 @app.callback(
     Output('map_graph', 'figure'),
-    Input('crossfilter-year--slider', 'value'),
     Input('elevation_graph', 'selectedData'),
 )
-def update_map(year_value,
-               selected_points):
-    dff = df[df['Year'] == year_value]
-
+def update_map(selected_points):
     selected_indexes = []
     if selected_points is not None:
         selected_indexes = [d['pointIndex'] for d in selected_points['points']]
@@ -120,11 +129,11 @@ def update_map(year_value,
 
     # fig.update_traces(customdata=dff[dff['Indicator Name'] == yaxis_column_name]['Country Name'])
 
-    #fig.update_xaxes(title=xaxis_column_name, type='linear' if xaxis_type == 'Linear' else 'log')
+    # fig.update_xaxes(title=xaxis_column_name, type='linear' if xaxis_type == 'Linear' else 'log')
 
-    #fig.update_yaxes(title=yaxis_column_name, type='linear' if yaxis_type == 'Linear' else 'log')
+    # fig.update_yaxes(title=yaxis_column_name, type='linear' if yaxis_type == 'Linear' else 'log')
 
-    #fig.update_layout()
+    # fig.update_layout()
 
     return fig
 
@@ -138,7 +147,7 @@ def update_elevation_graph(hoverData):
     if hoverData is not None:
         hover_index = hoverData['points'][0]['pointIndex']
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=mydf['time'],
+    fig.add_trace(go.Scatter(x=mydf['c_dist_geo2d'],
                              y=mydf['elev'],
                              mode='lines+markers',
                              name="",
@@ -151,7 +160,7 @@ def update_elevation_graph(hoverData):
                              ),
                   )
     if hover_index is not None:
-        fig.add_trace(go.Scatter(x=[mydf.iloc[hover_index]['time']],
+        fig.add_trace(go.Scatter(x=[mydf.iloc[hover_index]['c_dist_geo2d']],
                                  y=[mydf.iloc[hover_index]['elev']],
                                  mode='markers',
                                  name="",
