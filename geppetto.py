@@ -382,8 +382,41 @@ class Geppetto:
         fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
         return fig
 
+    def copy_segment(self, columns, interval_unit="m", interval=(0, 0), trace_nr=0):
+        """
+        Return a portion of one trace of the list of Dataframes
+        :param columns: columns that will be copied, it makes no sense to copy all because that will complicate
+        operations such as interpolate unnecessarily
+        :param interval_unit: can be "m" for meters or "i" for index
+        :param interval: extremes (included) of the segment, in m
+        :param trace_nr: the position of the trace in the array of Dataframes
+        :return:
+        """
+        # Select only the points belonging to the climb
+        assert interval[0] >= 0
+        assert interval[1] >= 0
+        assert interval_unit in ("m", "i")
 
-    def plot_map(self, interval_unit="m", interval=(0, 0), trace_nr = 0):
+        # Create copy to avoid warnings and confusion
+        df_segment = self.df[trace_nr][columns].copy()
+
+        # Selection in case of meter interval
+        if interval_unit == "m":
+            if interval[1] == 0:
+                df_segment = df_segment[df_segment["c_dist_geo2d"] >= interval[0]]
+            else:
+                df_segment = df_segment[
+                    (df_segment["c_dist_geo2d"] >= interval[0]) & (df_segment["c_dist_geo2d"] <= interval[1])]
+
+        # Selection in case of index interval
+        elif interval_unit == "i":
+            if interval[1] == 0:
+                df_segment = df_segment.iloc[interval[0]:]
+            else:
+                df_segment = df_segment.iloc[interval[0]:interval[1]]
+        return df_segment
+
+    def plot_map(self, interval_unit="m", interval=(0, 0), trace_nr=0):
         """
 
         :param interval_unit:
@@ -393,15 +426,17 @@ class Geppetto:
         """
 
         df_selection = self.copy_segment(columns=["lon", "lat", "c_dist_geo2d", "elev"],
-                                     interval_unit=interval_unit,
-                                     interval=interval,
-                                     trace_nr=trace_nr)
+                                         interval_unit=interval_unit,
+                                         interval=interval,
+                                         trace_nr=trace_nr)
 
         fig = go.Figure()
         fig.add_trace(go.Scattermapbox(lat=df_selection["lat"],
                                        lon=df_selection["lon"],
                                        mode='lines+markers',
-                                       marker=go.scattermapbox.Marker(size=6),
+                                       marker=go.scattermapbox.Marker(size=6,
+                                                                      color=df_selection["elev"],
+                                                                      colorscale=px.colors.sequential.Bluered),
                                        hovertext=df_selection['c_dist_geo2d'],
                                        subplot='mapbox',
                                        )
@@ -436,40 +471,6 @@ class Geppetto:
                       )
         fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
         return fig
-
-    def copy_segment(self, columns, interval_unit="m", interval=(0, 0), trace_nr=0):
-        """
-        Return a portion of one trace of the list of Dataframes
-        :param columns: columns that will be copied, it makes no sense to copy all because that will complicate
-        operations such as interpolate unnecessarily
-        :param interval_unit: can be "m" for meters or "i" for index
-        :param interval: extremes (included) of the segment, in m
-        :param trace_nr: the position of the trace in the array of Dataframes
-        :return:
-        """
-        # Select only the points belonging to the climb
-        assert interval[0] >= 0
-        assert interval[1] >= 0
-        assert interval_unit in ("m", "i")
-
-        # Create copy to avoid warnings and confusion
-        df_segment = self.df[trace_nr][columns].copy()
-
-        # Selection in case of meter interval
-        if interval_unit == "m":
-            if interval[1] == 0:
-                df_segment = df_segment[df_segment["c_dist_geo2d"] >= interval[0]]
-            else:
-                df_segment = df_segment[
-                    (df_segment["c_dist_geo2d"] >= interval[0]) & (df_segment["c_dist_geo2d"] <= interval[1])]
-
-        # Selection in case of index interval
-        elif interval_unit == "i":
-            if interval[1] == 0:
-                df_segment = df_segment.iloc[interval[0]:]
-            else:
-                df_segment = df_segment.iloc[interval[0]:interval[1]]
-        return df_segment
 
     def gradient(self, interval_unit="m", interval=(0, 0), resolution=1000, trace_nr=0, show_map=False):
         """
@@ -571,7 +572,12 @@ class Geppetto:
                           hovermode='x')
         return fig
 
-    def estimate_power(self, interval_unit="m", interval=(0, 0), trace_nr=0, total_mass=76 + 1 + 1.5 + 8,
+    def estimate_power(self,
+                       interval_unit="m",
+                       interval=(0, 0),
+                       trace_nr=0,
+                       total_mass=76 + 1 + 1.5 + 8,
+                       filter_window=4,
                        debug_plots=False):
         """
         Estimates the power over a portion of one dataframe
@@ -647,11 +653,9 @@ class Geppetto:
             fig_5.show()
 
         # Filter
-        use_filter = 1
-        if use_filter:
-            window = 4
-            df_selection['c_speed'] = df_selection['c_speed'].rolling(window, center=True).mean()
-            df_selection['c_gradient'] = df_selection['c_gradient'].rolling(window, center=True).mean()
+        if filter_window > 0:
+            df_selection['c_speed'] = df_selection['c_speed'].rolling(filter_window, center=True).mean()
+            df_selection['c_gradient'] = df_selection['c_gradient'].rolling(filter_window, center=True).mean()
 
         # Compute power contributions
         df_selection["c_power_air"] = df_selection.apply(lambda x: power_air(x.c_speed,
