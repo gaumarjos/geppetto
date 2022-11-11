@@ -349,15 +349,12 @@ class Geppetto:
             if csv:
                 df.to_csv("{}.csv".format(name))
 
-    def plot_map_elevation(self):
+    def plot_maps(self):
         """
-        Plots all traces that were imported.
-        :return: Plots
+        Plot all maps
+        :return: figure
         """
-        fig = make_subplots(
-            rows=2, cols=1,
-            row_heights=[0.75, 0.25]
-        )
+        fig = go.Figure()
         for i, df in enumerate(self.df):
             fig.add_trace(go.Scattermapbox(lat=df["lat"],
                                            lon=df["lon"],
@@ -372,7 +369,6 @@ class Geppetto:
                 hovermode='closest',
                 mapbox=dict(
                     style="open-street-map",
-                    domain={'x': [0.0, 1.0], 'y': [0.25, 1.0]},
                     bearing=0,
                     center=go.layout.mapbox.Center(
                         lat=np.mean(df["lat"]),
@@ -383,23 +379,70 @@ class Geppetto:
                 )
             )
 
-        for i, df in enumerate(self.df):
-            fig.add_trace(go.Scatter(x=df["c_dist_geo2d"],
-                                     y=df["elev"],
-                                     mode='lines+markers',
-                                     name=self.file[i],
-                                     ),
-                          row=2,
-                          col=1
-                          )
-        fig.update_layout(margin={"r": 0, "t": 20, "l": 0, "b": 0})
-        fig.show()
+        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+        return fig
 
-    def copy_segment(self, columns, interval=(0, 0), trace_nr=0):
+
+    def plot_map(self, interval_unit="m", interval=(0, 0), trace_nr = 0):
+        """
+
+        :param interval_unit:
+        :param interval:
+        :param trace_nr:
+        :return:
+        """
+
+        df_selection = self.copy_segment(columns=["lon", "lat", "c_dist_geo2d", "elev"],
+                                     interval_unit=interval_unit,
+                                     interval=interval,
+                                     trace_nr=trace_nr)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scattermapbox(lat=df_selection["lat"],
+                                       lon=df_selection["lon"],
+                                       mode='lines+markers',
+                                       marker=go.scattermapbox.Marker(size=6),
+                                       hovertext=df_selection['c_dist_geo2d'],
+                                       subplot='mapbox',
+                                       )
+                      )
+        fig.update_layout(
+            hovermode='closest',
+            mapbox=dict(
+                style="open-street-map",
+                bearing=0,
+                center=go.layout.mapbox.Center(
+                    lat=np.mean(df_selection["lat"]),
+                    lon=np.mean(df_selection["lon"])
+                ),
+                pitch=0,
+                zoom=11
+            )
+        )
+
+        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+        return fig
+
+    def plot_elevation(self):
+        """
+        Plots all traces that were imported.
+        :return: Plots
+        """
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=self.df[0]["c_dist_geo2d"],
+                                 y=self.df[0]["elev"],
+                                 mode='lines+markers',
+                                 ),
+                      )
+        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+        return fig
+
+    def copy_segment(self, columns, interval_unit="m", interval=(0, 0), trace_nr=0):
         """
         Return a portion of one trace of the list of Dataframes
         :param columns: columns that will be copied, it makes no sense to copy all because that will complicate
         operations such as interpolate unnecessarily
+        :param interval_unit: can be "m" for meters or "i" for index
         :param interval: extremes (included) of the segment, in m
         :param trace_nr: the position of the trace in the array of Dataframes
         :return:
@@ -407,26 +450,42 @@ class Geppetto:
         # Select only the points belonging to the climb
         assert interval[0] >= 0
         assert interval[1] >= 0
+        assert interval_unit in ("m", "i")
+
+        # Create copy to avoid warnings and confusion
         df_segment = self.df[trace_nr][columns].copy()
-        if interval[1] == 0:
-            df_segment = df_segment[df_segment["c_dist_geo2d"] >= interval[0]]
-        else:
-            df_segment = df_segment[
-                (df_segment["c_dist_geo2d"] >= interval[0]) & (df_segment["c_dist_geo2d"] <= interval[1])]
+
+        # Selection in case of meter interval
+        if interval_unit == "m":
+            if interval[1] == 0:
+                df_segment = df_segment[df_segment["c_dist_geo2d"] >= interval[0]]
+            else:
+                df_segment = df_segment[
+                    (df_segment["c_dist_geo2d"] >= interval[0]) & (df_segment["c_dist_geo2d"] <= interval[1])]
+
+        # Selection in case of index interval
+        elif interval_unit == "i":
+            if interval[1] == 0:
+                df_segment = df_segment.iloc[interval[0]:]
+            else:
+                df_segment = df_segment.iloc[interval[0]:interval[1]]
         return df_segment
 
-    def gradient(self, interval=(0, 0), resolution=1000, trace_nr=0):
+    def gradient(self, interval_unit="m", interval=(0, 0), resolution=1000, trace_nr=0, show_map=False):
         """
         Computes the gradient over a portion of one dataframe
+        :param interval_unit: can be "m" for meters or "i" for index
         :param interval: the gradient is calculated over the portion [start_meter, end_meter] of the input trace
         :param resolution: the "step" in which the gradient tis calculated/averaged, in meters
         :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
+        :param show_map: show a minimap in the bottom right corner
         :return: two dataframes, the first with all elevation values and the second with gradient values at specific distances "resolution" meters apart.
         """
 
         # Create a local copy of the input array of dataframes containing only the points belonging to the portion,
         # usually a climb, of interest
         df_climb = self.copy_segment(columns=["lon", "lat", "c_dist_geo2d", "elev"],
+                                     interval_unit=interval_unit,
                                      interval=interval,
                                      trace_nr=trace_nr)
 
@@ -453,22 +512,13 @@ class Geppetto:
         # This columns is redundant but is useful to cross check that the filter worked well
         df_climb_gradient['steps'] = np.flip(steps)
 
-        return df_climb, df_climb_gradient
-
-    @staticmethod
-    def plot_gradient(df, df_gradient):
-        """
-
-        :param df:
-        :param df_gradient:
-        :return:
-        """
+        # Generate figure
         fig = go.Figure()
-        for i in range(len(df_gradient) - 1):
-            portion = df[
-                (df['c_dist_geo2d_neg'] >= df_gradient.iloc[i]["c_dist_geo2d_neg"]) & (
-                        df['c_dist_geo2d_neg'] <= df_gradient.iloc[i + 1]["c_dist_geo2d_neg"])]
-            g = df_gradient['c_gradient'].iloc[i]
+        for i in range(len(df_climb_gradient) - 1):
+            portion = df_climb[
+                (df_climb['c_dist_geo2d_neg'] >= df_climb_gradient.iloc[i]["c_dist_geo2d_neg"]) & (
+                        df_climb['c_dist_geo2d_neg'] <= df_climb_gradient.iloc[i + 1]["c_dist_geo2d_neg"])]
+            g = df_climb_gradient['c_gradient'].iloc[i]
             fig.add_trace(go.Scatter(x=portion['c_dist_geo2d_neg'],
                                      y=portion['elev'],
                                      fill='tozeroy',
@@ -485,42 +535,47 @@ class Geppetto:
                                arrowhead=0)
 
         # Map (1,2)
-        fig.add_trace(go.Scattermapbox(lat=df["lat"],
-                                       lon=df["lon"],
-                                       mode='lines+markers',
-                                       hovertext=df["c_dist_geo2d_neg"],
-                                       line=dict(
-                                           width=2,
-                                           color="gray",
-                                       ),
-                                       marker=go.scattermapbox.Marker(size=6,
-                                                                      color=df["elev"],
-                                                                      colorscale=px.colors.sequential.Bluered),
-                                       subplot='mapbox2',
-                                       name='',
-                                       showlegend=False
-                                       )
-                      )
-        fig.update_layout(
-            hovermode='closest',
-            mapbox2=dict(
-                style="open-street-map",
-                domain={'x': [0.66, 0.99], 'y': [0.01, 0.33]},
-                bearing=0,
-                center=go.layout.mapbox.Center(
-                    lat=np.mean(df["lat"]),
-                    lon=np.mean(df["lon"])
-                ),
-                pitch=0,
-                zoom=11
+        if show_map:
+            fig.add_trace(go.Scattermapbox(lat=df_climb["lat"],
+                                           lon=df_climb["lon"],
+                                           mode='lines+markers',
+                                           hovertext=df_climb["c_dist_geo2d_neg"],
+                                           line=dict(
+                                               width=2,
+                                               color="gray",
+                                           ),
+                                           marker=go.scattermapbox.Marker(size=6,
+                                                                          color=df_climb["elev"],
+                                                                          colorscale=px.colors.sequential.Bluered),
+                                           subplot='mapbox2',
+                                           name='',
+                                           showlegend=False
+                                           )
+                          )
+            fig.update_layout(
+                hovermode='closest',
+                mapbox2=dict(
+                    style="open-street-map",
+                    domain={'x': [0.66, 0.99], 'y': [0.01, 0.33]},
+                    bearing=0,
+                    center=go.layout.mapbox.Center(
+                        lat=np.mean(df_climb["lat"]),
+                        lon=np.mean(df_climb["lon"])
+                    ),
+                    pitch=0,
+                    zoom=11
+                )
             )
-        )
-        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
-        fig.show()
 
-    def estimate_power(self, interval=(0, 0), trace_nr=0, total_mass=76 + 1 + 1.5 + 8, debug_plots=False):
+        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},
+                          hovermode='x')
+        return fig
+
+    def estimate_power(self, interval_unit="m", interval=(0, 0), trace_nr=0, total_mass=76 + 1 + 1.5 + 8,
+                       debug_plots=False):
         """
         Estimates the power over a portion of one dataframe
+        :param interval_unit: can be "m" for meters or "i" for index
         :param interval: [start_meter, end_meter]
         :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
         :param total_mass: bike + rider
@@ -577,6 +632,7 @@ class Geppetto:
         # Work on a portion of the track
         df_selection = self.copy_segment(
             columns=['time', 'lon', 'lat', 'c_dist_geo2d', 'elev', 'c_speed', 'atemp', 'hr'],
+            interval_unit=interval_unit,
             interval=interval,
             trace_nr=trace_nr)
 
@@ -623,57 +679,59 @@ class Geppetto:
 
         print("Average power: {} W".format(np.mean(df_selection['c_power'])))
 
-        return df_selection
+        # Generate figure
+        fig = make_subplots(rows=1, cols=1, shared_xaxes=True, specs=[[{"secondary_y": True}]])
 
-    @staticmethod
-    def plot_power(df):
-        # Plot
-        # fig_power = go.Figure()
-        fig_power = make_subplots(rows=2, cols=1, shared_xaxes=True)
+        fig.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
+                                 y=df_selection["c_power_grav"],
+                                 name="Gravity",
+                                 hoverinfo='x+y',
+                                 mode='lines',
+                                 line=dict(width=0.0, color='green'),
+                                 stackgroup='one'
+                                 ),
+                      row=1,
+                      col=1,
+                      secondary_y=False)
+        fig.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
+                                 y=df_selection["c_power_air"],
+                                 name="Air",
+                                 hoverinfo='x+y',
+                                 mode='lines',
+                                 line=dict(width=0.0, color='lightblue'),
+                                 stackgroup='one'  # define stack group
+                                 ),
+                      row=1,
+                      col=1,
+                      secondary_y=False)
+        fig.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
+                                 y=df_selection["c_power_roll"],
+                                 name="Roll",
+                                 hoverinfo='x+y',
+                                 mode='lines',
+                                 line=dict(width=2.0, color='black'),
+                                 stackgroup='one'
+                                 ),
+                      row=1,
+                      col=1,
+                      secondary_y=False)
+        fig.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
+                                 y=df_selection["hr"],
+                                 name="HR",
+                                 hoverinfo='x+y',
+                                 mode='lines',
+                                 line=dict(width=1.0, color='red'),
+                                 ),
+                      row=1,
+                      col=1,
+                      secondary_y=True)
+        fig.update_yaxes(showspikes=True, secondary_y=False)
+        fig.update_yaxes(showspikes=True, secondary_y=True)
+        fig.update_xaxes(showspikes=True)
 
-        fig_power.add_trace(go.Scatter(x=df["c_dist_geo2d"],
-                                       y=df["c_power_grav"],
-                                       name="Gravity",
-                                       hoverinfo='x+y',
-                                       mode='lines',
-                                       line=dict(width=0.0, color='green'),
-                                       stackgroup='one'
-                                       ),
-                            row=1,
-                            col=1)
-        fig_power.add_trace(go.Scatter(x=df["c_dist_geo2d"],
-                                       y=df["c_power_air"],
-                                       name="Air",
-                                       hoverinfo='x+y',
-                                       mode='lines',
-                                       line=dict(width=0.0, color='lightblue'),
-                                       stackgroup='one'  # define stack group
-                                       ),
-                            row=1,
-                            col=1)
-        fig_power.add_trace(go.Scatter(x=df["c_dist_geo2d"],
-                                       y=df["c_power_roll"],
-                                       name="Roll",
-                                       hoverinfo='x+y',
-                                       mode='lines',
-                                       line=dict(width=2.0, color='black'),
-                                       stackgroup='one'
-                                       ),
-                            row=1,
-                            col=1)
-        fig_power.add_trace(go.Scatter(x=df["c_dist_geo2d"],
-                                       y=df["hr"],
-                                       name="HR",
-                                       hoverinfo='x+y',
-                                       mode='lines',
-                                       line=dict(width=1.0, color='red'),
-                                       ),
-                            row=2,
-                            col=1)
-        fig_power.update_yaxes(showspikes=True)
-        fig_power.update_xaxes(showspikes=True, title="Distance (m)")
-        # fig_power.update_traces(xaxis="x")
-        fig_power.show()
+        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},
+                          hovermode='x')
+        return fig
 
     def cadence_speed_curve(self, interval=(0, 0), trace_nr=0):
         """
@@ -744,12 +802,10 @@ def main():
 
     if 1:
         alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], debug=0, debug_plots=0, csv=1)
-        # alpe.plot_map_elevation()
-        # climb, climb_gradient = alpe.gradient(interval=[33739, 48124], resolution=500)
-        # alpe.plot_gradient(climb, climb_gradient)
-
-        df_power = alpe.estimate_power(interval=[33739, 48124])
-        alpe.plot_power(df_power)
+        alpe.plot_map().show()
+        # alpe.plot_elevation().show()
+        # alpe.gradient(interval=[33739, 48124], resolution=500).show()
+        # alpe.estimate_power(interval=[33739, 48124]).show()
         # alpe.estimate_power(interval=[0, 0])
 
     if 0:
