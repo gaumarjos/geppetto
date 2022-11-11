@@ -34,12 +34,33 @@ import os
 import fitdecode
 
 
+def colorscale(gradient_value, half_n=15):
+    """
+    Generate the color shade relative to a specific gradient value in a green - yellow - red scale of 2*half_n+1
+    values. If gradient value is beyond the extremes, the maximum values will be used.
+    E.g.:
+        gradient_value == -half_n --> green
+        gradient_value == 0 --> yellow
+        gradient_value == +half_n --> red
+    :param gradient_value: the gradient value
+    :param half_n: half of the number of shades minus 1 (the center value).
+    :return: a RGB tuple
+    """
+    a = np.arange((half_n - 0.5), -half_n, -1.0)
+    red = np.append(half_n * [255], np.linspace(255, 0, (half_n + 1)))
+    green = np.append(np.linspace(0, 255, (half_n + 1)), half_n * [255])
+    blue = (2 * half_n + 1) * [0]
+    i = np.digitize(gradient_value, a)
+    return "rgb({},{},{})".format(int(red[i]), int(green[i]), int(blue[i]))
+
+
 class Geppetto:
-    def __init__(self, files, plots=False, debug_plots=False, debug=False, csv=False):
+    def __init__(self, files, debug_plots=False, debug=False, csv=False):
         """
         The object can load multiple gpx files at once. Useful when we want to plot multiple traces on the same map. The
         processing is done independently using local variables and the results are then appended to a class variable.
-        All speeds are in m/s unless km/h are specified (and that can happen only in plots)
+        All speeds are in m/s unless km/h are specified (and that can happen only in plots).
+        If multiple files are loaded, an array of Dataframes is created.
 
         :param files: an array of .gpx files
         """
@@ -166,6 +187,7 @@ class Geppetto:
         # Create empty lists to be populated
         self.df = []  # "raw" traces
         self.df_moving = []  # traces with idle segments removed
+        self.file = []
 
         # Go through all files
         for file in files:
@@ -321,65 +343,57 @@ class Geppetto:
             # Once done, take the current df (local) and append it to the list of df's
             self.df.append(df)
             self.df_moving.append(df_moving)
+            self.file.append(file)
 
             # Save to CSV for further processing (it's going to be faster even than just reimporting a GPX)
             if csv:
                 df.to_csv("{}.csv".format(name))
 
-        # Map and elevation plots
-        if plots:
-            fig = make_subplots(
-                rows=2, cols=1,
-                row_heights=[0.75, 0.25]
-            )
-            for i, df in enumerate(self.df):
-                fig.add_trace(go.Scattermapbox(lat=df["lat"],
-                                               lon=df["lon"],
-                                               mode='lines+markers',
-                                               marker=go.scattermapbox.Marker(size=6),
-                                               name=files[i],
-                                               hovertext=df['c_dist_geo2d'],
-                                               subplot='mapbox',
-                                               )
-                              )
-                fig.update_layout(
-                    hovermode='closest',
-                    mapbox=dict(
-                        style="open-street-map",
-                        domain={'x': [0.0, 1.0], 'y': [0.25, 1.0]},
-                        bearing=0,
-                        center=go.layout.mapbox.Center(
-                            lat=np.mean(df["lat"]),
-                            lon=np.mean(df["lon"])
-                        ),
-                        pitch=0,
-                        zoom=11
-                    )
+    def plot_map_elevation(self):
+        """
+        Plots all traces that were imported.
+        :return: Plots
+        """
+        fig = make_subplots(
+            rows=2, cols=1,
+            row_heights=[0.75, 0.25]
+        )
+        for i, df in enumerate(self.df):
+            fig.add_trace(go.Scattermapbox(lat=df["lat"],
+                                           lon=df["lon"],
+                                           mode='lines+markers',
+                                           marker=go.scattermapbox.Marker(size=6),
+                                           name=self.file[i],
+                                           hovertext=df['c_dist_geo2d'],
+                                           subplot='mapbox',
+                                           )
+                          )
+            fig.update_layout(
+                hovermode='closest',
+                mapbox=dict(
+                    style="open-street-map",
+                    domain={'x': [0.0, 1.0], 'y': [0.25, 1.0]},
+                    bearing=0,
+                    center=go.layout.mapbox.Center(
+                        lat=np.mean(df["lat"]),
+                        lon=np.mean(df["lon"])
+                    ),
+                    pitch=0,
+                    zoom=11
                 )
+            )
 
-            for i, df in enumerate(self.df):
-                fig.add_trace(go.Scatter(x=df["c_dist_geo2d"],
-                                         y=df["elev"],
-                                         mode='lines+markers',
-                                         name=files[i],
-                                         ),
-                              row=2,
-                              col=1
-                              )
-            fig.update_layout(margin={"r": 0, "t": 20, "l": 0, "b": 0})
-            fig.show()
-
-    @staticmethod
-    def colorscale(g):
-        halfn = 15
-
-        a = np.arange((halfn - 0.5), -halfn, -1.0)
-        red = np.append(halfn * [255], np.linspace(255, 0, (halfn + 1)))
-        green = np.append(np.linspace(0, 255, (halfn + 1)), halfn * [255])
-        blue = (2 * halfn + 1) * [0]
-
-        i = np.digitize(g, a)
-        return "rgb({},{},{})".format(int(red[i]), int(green[i]), int(blue[i]))
+        for i, df in enumerate(self.df):
+            fig.add_trace(go.Scatter(x=df["c_dist_geo2d"],
+                                     y=df["elev"],
+                                     mode='lines+markers',
+                                     name=self.file[i],
+                                     ),
+                          row=2,
+                          col=1
+                          )
+        fig.update_layout(margin={"r": 0, "t": 20, "l": 0, "b": 0})
+        fig.show()
 
     def copy_segment(self, columns, interval=(0, 0), trace_nr=0):
         """
@@ -403,14 +417,15 @@ class Geppetto:
 
     def gradient(self, interval=(0, 0), resolution=1000, trace_nr=0):
         """
-        This method operates on only one trace
-        :param interval: [start_meter, end_meter]
+        Computes the gradient over a portion of one dataframe
+        :param interval: the gradient is calculated over the portion [start_meter, end_meter] of the input trace
         :param resolution: the "step" in which the gradient tis calculated/averaged, in meters
         :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
-        :return: plots
+        :return: two dataframes, the first with all elevation values and the second with gradient values at specific distances "resolution" meters apart.
         """
 
-        # Select only the points belonging to the climb
+        # Create a local copy of the input array of dataframes containing only the points belonging to the portion,
+        # usually a climb, of interest
         df_climb = self.copy_segment(columns=["lon", "lat", "c_dist_geo2d", "elev"],
                                      interval=interval,
                                      trace_nr=trace_nr)
@@ -430,28 +445,34 @@ class Geppetto:
         df_climb = df_climb.interpolate(method='linear', limit_direction='backward', limit=1)
 
         # Copy only elements at step distance in a new df
-        df_climb_subset = df_climb[df_climb['c_dist_geo2d_neg'].isin(steps)].copy()
-        df_climb_subset['c_elev_delta'] = df_climb_subset.elev.diff().shift(-1)
-        df_climb_subset['c_dist_delta'] = df_climb_subset.c_dist_geo2d_neg.diff().shift(-1)
-        df_climb_subset['c_gradient'] = df_climb_subset['c_elev_delta'] / df_climb_subset['c_dist_delta'] * 100
+        df_climb_gradient = df_climb[df_climb['c_dist_geo2d_neg'].isin(steps)].copy()
+        df_climb_gradient['c_elev_delta'] = df_climb_gradient.elev.diff().shift(-1)
+        df_climb_gradient['c_dist_delta'] = df_climb_gradient.c_dist_geo2d_neg.diff().shift(-1)
+        df_climb_gradient['c_gradient'] = df_climb_gradient['c_elev_delta'] / df_climb_gradient['c_dist_delta'] * 100
 
-        # Plots
+        # This columns is redundant but is useful to cross check that the filter worked well
+        df_climb_gradient['steps'] = np.flip(steps)
+
+        return df_climb, df_climb_gradient
+
+    @staticmethod
+    def plot_gradient(df, df_gradient):
+        """
+
+        :param df:
+        :param df_gradient:
+        :return:
+        """
         fig = go.Figure()
-        # fig = make_subplots(
-        #     rows=1, cols=2,
-        #     column_widths=[0.9, 0.1]
-        # )
-
-        # Gradient (1,1)
-        steps = np.flip(steps)
-        for i in range(len(steps) - 1):
-            portion = df_climb[
-                (df_climb['c_dist_geo2d_neg'] >= steps[i]) & (df_climb['c_dist_geo2d_neg'] <= steps[i + 1])]
-            g = df_climb_subset['c_gradient'].iloc[i]
+        for i in range(len(df_gradient) - 1):
+            portion = df[
+                (df['c_dist_geo2d_neg'] >= df_gradient.iloc[i]["c_dist_geo2d_neg"]) & (
+                        df['c_dist_geo2d_neg'] <= df_gradient.iloc[i + 1]["c_dist_geo2d_neg"])]
+            g = df_gradient['c_gradient'].iloc[i]
             fig.add_trace(go.Scatter(x=portion['c_dist_geo2d_neg'],
                                      y=portion['elev'],
                                      fill='tozeroy',
-                                     fillcolor=self.colorscale(g),
+                                     fillcolor=colorscale(g),
                                      mode='none',
                                      name='',
                                      showlegend=False),
@@ -464,16 +485,16 @@ class Geppetto:
                                arrowhead=0)
 
         # Map (1,2)
-        fig.add_trace(go.Scattermapbox(lat=df_climb["lat"],
-                                       lon=df_climb["lon"],
+        fig.add_trace(go.Scattermapbox(lat=df["lat"],
+                                       lon=df["lon"],
                                        mode='lines+markers',
-                                       hovertext=df_climb["c_dist_geo2d_neg"],
+                                       hovertext=df["c_dist_geo2d_neg"],
                                        line=dict(
                                            width=2,
                                            color="gray",
                                        ),
                                        marker=go.scattermapbox.Marker(size=6,
-                                                                      color=df_climb["elev"],
+                                                                      color=df["elev"],
                                                                       colorscale=px.colors.sequential.Bluered),
                                        subplot='mapbox2',
                                        name='',
@@ -487,8 +508,8 @@ class Geppetto:
                 domain={'x': [0.66, 0.99], 'y': [0.01, 0.33]},
                 bearing=0,
                 center=go.layout.mapbox.Center(
-                    lat=np.mean(df_climb["lat"]),
-                    lon=np.mean(df_climb["lon"])
+                    lat=np.mean(df["lat"]),
+                    lon=np.mean(df["lon"])
                 ),
                 pitch=0,
                 zoom=11
@@ -496,6 +517,163 @@ class Geppetto:
         )
         fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
         fig.show()
+
+    def estimate_power(self, interval=(0, 0), trace_nr=0, total_mass=76 + 1 + 1.5 + 8, debug_plots=False):
+        """
+        Estimates the power over a portion of one dataframe
+        :param interval: [start_meter, end_meter]
+        :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
+        :param total_mass: bike + rider
+        :param debug_plots: toggle intermediate debug plots
+        :return: the same dataframe it was given as input (or a portion of it) with columns c_power_air,  c_power_roll,
+                 c_power_grav and a total  c_power added.
+        """
+
+        def power_air(speed, altitude, temperature_degc, coefficient_drag_area=0.28, losses_drivetrain=0.051):
+            """
+            :param speed: [m/s]
+            :param altitude: [m]
+            :param temperature_degc: [°C]
+            :param coefficient_drag_area: Coefficient of drag * area, to be estimated based
+            :param losses_drivetrain: pedaling and drivetrain efficiency
+            :return: [W]
+            """
+            # Air density
+            L = 0.0065
+            T0 = 298
+            M = 0.02896
+            Rs = 287.058
+            temperature_kelvin = temperature_degc + 273.15
+            p_exp = M * const.g / (const.R * L)
+            p = const.atm * (1 - (L * altitude / T0)) ** p_exp
+            rho = p / (Rs * temperature_kelvin)  # kg/m^3
+            force_air = 0.5 * coefficient_drag_area * rho * speed ** 2
+            return force_air * speed / (1.0 - losses_drivetrain)
+
+        def power_roll(gradient, m, speed, coefficient_rollingresistance=0.00321, losses_drivetrain=0.051):
+            """
+            Estimate rolling resistance for the 2 tires (TBC)
+            :param gradient: ratio
+            :param m: [kg]
+            :param speed: [m/s]
+            :param coefficient_rollingresistance: 0.00321 for one Continental GP5000 @6.9bar
+            :param losses_drivetrain: pedaling and drivetrain efficiency
+            :return: [W]
+            """
+            force_roll = 2. * coefficient_rollingresistance * np.cos(np.arctan(gradient)) * m * const.g
+            return force_roll * speed / (1.0 - losses_drivetrain)
+
+        def power_grav(gradient, m, speed, losses_drivetrain=0.051):
+            """
+            :param gradient: ratio
+            :param m: [kg]
+            :param speed: [m/s]
+            :param losses_drivetrain: pedaling and drivetrain efficiency
+            :return: [W]
+            """
+            force_grav = np.sin(np.arctan(gradient)) * m * const.g
+            return force_grav * speed / (1.0 - losses_drivetrain)
+
+        # Work on a portion of the track
+        df_selection = self.copy_segment(
+            columns=['time', 'lon', 'lat', 'c_dist_geo2d', 'elev', 'c_speed', 'atemp', 'hr'],
+            interval=interval,
+            trace_nr=trace_nr)
+
+        # Compute gradient
+        df_selection['c_elev_delta'] = df_selection.elev.diff().shift(-1)
+        df_selection['c_dist_delta'] = df_selection.c_dist_geo2d.diff().shift(-1)
+        df_selection['c_gradient'] = df_selection['c_elev_delta'] / df_selection['c_dist_delta']
+
+        if debug_plots:
+            fig_5 = px.line(df_selection, x='c_dist_geo2d', y=['c_gradient', 'c_elev_delta', 'c_dist_delta'],
+                            template='plotly_dark')
+            fig_5.show()
+
+        # Filter
+        use_filter = 1
+        if use_filter:
+            window = 4
+            df_selection['c_speed'] = df_selection['c_speed'].rolling(window, center=True).mean()
+            df_selection['c_gradient'] = df_selection['c_gradient'].rolling(window, center=True).mean()
+
+        # Compute power contributions
+        df_selection["c_power_air"] = df_selection.apply(lambda x: power_air(x.c_speed,
+                                                                             x.elev,
+                                                                             x.atemp),
+                                                         axis=1)
+        df_selection["c_power_roll"] = df_selection.apply(lambda x: power_roll(x.c_gradient,
+                                                                               total_mass,
+                                                                               x.c_speed),
+                                                          axis=1)
+        df_selection["c_power_grav"] = df_selection.apply(lambda x: power_grav(x.c_gradient,
+                                                                               total_mass,
+                                                                               x.c_speed),
+                                                          axis=1)
+        df_selection["c_power"] = df_selection["c_power_air"] + df_selection["c_power_roll"] + df_selection[
+            "c_power_grav"]
+
+        df_selection.fillna(0, inplace=True)
+
+        # Ideas
+        # A) Consider positive power only
+        # df_pushing = df_selection[df_selection['c_power'] >= 0.0]
+        # B) Set all negative powers to zero
+        df_selection.loc[df_selection["c_power"] < 0.0, "c_power"] = 0
+
+        print("Average power: {} W".format(np.mean(df_selection['c_power'])))
+
+        return df_selection
+
+    @staticmethod
+    def plot_power(df):
+        # Plot
+        # fig_power = go.Figure()
+        fig_power = make_subplots(rows=2, cols=1, shared_xaxes=True)
+
+        fig_power.add_trace(go.Scatter(x=df["c_dist_geo2d"],
+                                       y=df["c_power_grav"],
+                                       name="Gravity",
+                                       hoverinfo='x+y',
+                                       mode='lines',
+                                       line=dict(width=0.0, color='green'),
+                                       stackgroup='one'
+                                       ),
+                            row=1,
+                            col=1)
+        fig_power.add_trace(go.Scatter(x=df["c_dist_geo2d"],
+                                       y=df["c_power_air"],
+                                       name="Air",
+                                       hoverinfo='x+y',
+                                       mode='lines',
+                                       line=dict(width=0.0, color='lightblue'),
+                                       stackgroup='one'  # define stack group
+                                       ),
+                            row=1,
+                            col=1)
+        fig_power.add_trace(go.Scatter(x=df["c_dist_geo2d"],
+                                       y=df["c_power_roll"],
+                                       name="Roll",
+                                       hoverinfo='x+y',
+                                       mode='lines',
+                                       line=dict(width=2.0, color='black'),
+                                       stackgroup='one'
+                                       ),
+                            row=1,
+                            col=1)
+        fig_power.add_trace(go.Scatter(x=df["c_dist_geo2d"],
+                                       y=df["hr"],
+                                       name="HR",
+                                       hoverinfo='x+y',
+                                       mode='lines',
+                                       line=dict(width=1.0, color='red'),
+                                       ),
+                            row=2,
+                            col=1)
+        fig_power.update_yaxes(showspikes=True)
+        fig_power.update_xaxes(showspikes=True, title="Distance (m)")
+        # fig_power.update_traces(xaxis="x")
+        fig_power.show()
 
     def cadence_speed_curve(self, interval=(0, 0), trace_nr=0):
         """
@@ -543,160 +721,6 @@ class Geppetto:
         fig_cadence.update_layout(margin={"r": 40, "t": 40, "l": 40, "b": 40})
         fig_cadence.show()
 
-    def estimate_power(self, interval=(0, 0), trace_nr=0):
-        """
-        This method operates on only one trace
-        :param interval: [start_meter, end_meter]
-        :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
-        :return: plots
-        """
-
-        m = 76 + 1 + 1.5 + 8
-
-
-        def P_air(speed, altitude, T_C, CdA=0.28, L_dt=0.051):
-            """
-            :param speed: [m/s]
-            :param altitude: [m]
-            :param T_C: [°C]
-            :param CdA: Coefficient of drag * area, to be estimated based
-            :param L_dt: pedaling and drivetrain efficiency
-            :return: [W]
-            """
-            # Air density
-            L = 0.0065
-            T0 = 298
-            M = 0.02896
-            Rs = 287.058
-            T_K = T_C + 273.15
-            p_exp = M * const.g / (const.R * L)
-            p = const.atm * (1 - (L * altitude / T0)) ** p_exp
-            rho = p / (Rs * T_K)  # kg/m^3
-            F_air = 0.5 * CdA * rho * speed ** 2
-            P_air = F_air * speed / (1.0 - L_dt)
-            return P_air
-
-        def P_roll(gradient, m, speed, Crr=0.00321, L_dt=0.051):
-            """
-            Estimate rolling resistance for the 2 tires (TBC)
-            :param gradient: ratio
-            :param m: [kg]
-            :param Crr: 0.00321 for one Continental GP5000 @6.9bar
-            :param L_dt: pedaling and drivetrain efficiency
-            :return: [W]
-            """
-            F_roll = 2. * Crr * np.cos(np.arctan(gradient)) * m * const.g
-            P_roll = F_roll * speed / (1.0 - L_dt)
-            return P_roll
-
-        def P_grav(gradient, m, speed, L_dt=0.051):
-            """
-            :param gradient: ratio
-            :param m: [kg]
-            :param speed: [m/s]
-            :param L_dt: pedaling and drivetrain efficiency
-            :return: [W]
-            """
-            F_grav = np.sin(np.arctan(gradient)) * m * const.g
-            P_grav = F_grav * speed / (1.0 - L_dt)
-            return P_grav
-
-        # Work on a portion of the track
-        df_selection = self.copy_segment(columns=['time', 'lon', 'lat', 'c_dist_geo2d', 'elev', 'c_speed', 'atemp', 'hr'],
-                                         interval=interval,
-                                         trace_nr=trace_nr)
-
-        # Compute gradient
-        df_selection['c_elev_delta'] = df_selection.elev.diff().shift(-1)
-        df_selection['c_dist_delta'] = df_selection.c_dist_geo2d.diff().shift(-1)
-        df_selection['c_gradient'] = df_selection['c_elev_delta'] / df_selection['c_dist_delta']
-
-        if 0:
-            fig_5 = px.line(df_selection, x='c_dist_geo2d', y=['c_gradient', 'c_elev_delta', 'c_dist_delta'],
-                            template='plotly_dark')
-            fig_5.show()
-
-        # Filter
-        use_filter = 1
-        if use_filter:
-            window = 4
-            df_selection['c_speed'] = df_selection['c_speed'].rolling(window, center=True).mean()
-            df_selection['c_gradient'] = df_selection['c_gradient'].rolling(window, center=True).mean()
-
-        # Compute power contributions
-        df_selection["c_power_air"] = df_selection.apply(lambda x: P_air(x.c_speed,
-                                                                         x.elev,
-                                                                         x.atemp),
-                                                         axis=1)
-        df_selection["c_power_roll"] = df_selection.apply(lambda x: P_roll(x.c_gradient,
-                                                                           m,
-                                                                           x.c_speed),
-                                                          axis=1)
-        df_selection["c_power_grav"] = df_selection.apply(lambda x: P_grav(x.c_gradient,
-                                                                           m,
-                                                                           x.c_speed),
-                                                          axis=1)
-        df_selection["c_power"] = df_selection["c_power_air"] + df_selection["c_power_roll"] + df_selection[
-            "c_power_grav"]
-
-        df_selection.fillna(0, inplace=True)
-
-        # Ideas
-        # A) Consider positive power only
-        # df_pushing = df_selection[df_selection['c_power'] >= 0.0]
-        # B) Set all negative powers to zero
-        df_selection.loc[df_selection["c_power"] < 0.0, "c_power"] = 0
-
-        print("Average power: {} W".format(np.mean(df_selection['c_power'])))
-
-        # Plot
-        # fig_power = go.Figure()
-        fig_power = make_subplots(rows=2, cols=1, shared_xaxes=True)
-
-        fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
-                                       y=df_selection["c_power_grav"],
-                                       name="Gravity",
-                                       hoverinfo='x+y',
-                                       mode='lines',
-                                       line=dict(width=0.0, color='green'),
-                                       stackgroup='one'
-                                       ),
-                            row=1,
-                            col=1)
-        fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
-                                       y=df_selection["c_power_air"],
-                                       name="Air",
-                                       hoverinfo='x+y',
-                                       mode='lines',
-                                       line=dict(width=0.0, color='lightblue'),
-                                       stackgroup='one'  # define stack group
-                                       ),
-                            row=1,
-                            col=1)
-        fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
-                                       y=df_selection["c_power_roll"],
-                                       name="Roll",
-                                       hoverinfo='x+y',
-                                       mode='lines',
-                                       line=dict(width=2.0, color='black'),
-                                       stackgroup='one'
-                                       ),
-                            row=1,
-                            col=1)
-        fig_power.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
-                                       y=df_selection["hr"],
-                                       name="HR",
-                                       hoverinfo='x+y',
-                                       mode='lines',
-                                       line=dict(width=1.0, color='red'),
-                                       ),
-                            row=2,
-                            col=1)
-        fig_power.update_yaxes(showspikes=True)
-        fig_power.update_xaxes(showspikes=True, title="Distance (m)")
-        #fig_power.update_traces(xaxis="x")
-        fig_power.show()
-
 
 def main():
     """
@@ -719,10 +743,14 @@ def main():
                             plots=True)
 
     if 1:
-        alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], plots=0, debug=0, debug_plots=0, csv=1)
-        alpe.gradient(interval=[33739, 48124], resolution=500)
-        # alpe.estimate_power(interval=[33739, 48124])
-        alpe.estimate_power(interval=[0, 0])
+        alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], debug=0, debug_plots=0, csv=1)
+        # alpe.plot_map_elevation()
+        # climb, climb_gradient = alpe.gradient(interval=[33739, 48124], resolution=500)
+        # alpe.plot_gradient(climb, climb_gradient)
+
+        df_power = alpe.estimate_power(interval=[33739, 48124])
+        alpe.plot_power(df_power)
+        # alpe.estimate_power(interval=[0, 0])
 
     if 0:
         nederland = Geppetto(["tracks/Nederland.gpx"], plots=0, debug=0, debug_plots=0)
