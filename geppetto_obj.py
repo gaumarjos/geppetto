@@ -34,7 +34,7 @@ import os
 import fitdecode
 
 
-class Geppetto:
+class Trace:
     def __init__(self, files, debug_plots=False, debug=False, csv=False):
         """
         The object can load multiple gpx files at once. Useful when we want to plot multiple traces on the same map. The
@@ -847,21 +847,21 @@ def main():
     """
 
     if 0:
-        geppetto = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx",
-                             "tracks/Local_passes_gravel_edition_.gpx",
-                             "tracks/Two_more_W20_D3_.gpx",
-                             "tracks/The_local_4_or_5_passes.gpx",
-                             "tracks/More_local_passes_W17_D3_.gpx",
-                             "tracks/More_local_4_passes.gpx",
-                             "tracks/More_and_more_local_passes_W19_D3_.gpx",
-                             "tracks/Even_more_local_passes.gpx",
-                             "tracks/Cisa_e_Cirone.gpx",
-                             "tracks/Autumnal_chestnut_trees_Cisa_and_Brattello.gpx",
-                             ],
-                            plots=True)
+        geppetto = Trace(["tracks/The_missing_pass_W3_D2_.gpx",
+                          "tracks/Local_passes_gravel_edition_.gpx",
+                          "tracks/Two_more_W20_D3_.gpx",
+                          "tracks/The_local_4_or_5_passes.gpx",
+                          "tracks/More_local_passes_W17_D3_.gpx",
+                          "tracks/More_local_4_passes.gpx",
+                          "tracks/More_and_more_local_passes_W19_D3_.gpx",
+                          "tracks/Even_more_local_passes.gpx",
+                          "tracks/Cisa_e_Cirone.gpx",
+                          "tracks/Autumnal_chestnut_trees_Cisa_and_Brattello.gpx",
+                          ],
+                         plots=True)
 
     if 1:
-        alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], debug=0, debug_plots=0)
+        alpe = Trace(["tracks/The_missing_pass_W3_D2_.gpx"], debug=0, debug_plots=0)
         print(alpe.stats())
         # alpe.plot_map().show()
         # alpe.plot_elevation().show()
@@ -870,26 +870,26 @@ def main():
         # alpe.estimate_power(interval=[0, 0])
 
     if 0:
-        nederland = Geppetto(["tracks/Nederland.gpx"], plots=0, debug=0, debug_plots=0)
+        nederland = Trace(["tracks/Nederland.gpx"], plots=0, debug=0, debug_plots=0)
         nederland.gradient()
         nederland.cadence_speed_curve()
 
     if 0:
-        cagazzone = Geppetto(["tracks/CaCa.gpx"], plots=0, debug=0, debug_plots=0)
+        cagazzone = Trace(["tracks/CaCa.gpx"], plots=0, debug=0, debug_plots=0)
         cagazzone.gradient(interval=[7274, 12667], resolution=200)
 
     if 0:
-        votigno = Geppetto(["tracks/Broletto_salita_di_Votigno_e_Canossa.gpx"], plots=0, debug=0, debug_plots=0)
+        votigno = Trace(["tracks/Broletto_salita_di_Votigno_e_Canossa.gpx"], plots=0, debug=0, debug_plots=0)
         votigno.gradient(interval=[17676, 20572], resolution=200)
 
     if 0:
-        lagastrello = Geppetto(["tracks/More_local_4_passes.gpx"], plots=False, debug=0, debug_plots=0)
+        lagastrello = Trace(["tracks/More_local_4_passes.gpx"], plots=False, debug=0, debug_plots=0)
         lagastrello.gradient(interval=[94819, 106882])
         lagastrello.cadence_speed_curve(interval=[0, 0])
         lagastrello.estimate_power(interval=[0, 0])
 
     if 0:
-        arcana = Geppetto(["tracks/Local_passes_gravel_edition_W2_D2_.fit"], plots=False, debug=1, debug_plots=0)
+        arcana = Trace(["tracks/Local_passes_gravel_edition_W2_D2_.fit"], plots=False, debug=1, debug_plots=0)
         arcana.gradient(interval=[94819, 106882])
         arcana.cadence_speed_curve(interval=[0, 0])
         arcana.estimate_power(interval=[0, 0])
