@@ -1,9 +1,12 @@
 
+import os
+
+list = os.listdir("tracks/")
+print(list)
 
 
 
-
-
+'''
 def update_map3(selected_points):
     selected_indexes = []
     if selected_points is not None:
@@ -67,3 +70,5 @@ def update_map3(selected_points):
     # fig.update_yaxes(title=yaxis_column_name, type='linear' if yaxis_type == 'Linear' else 'log')
 
     return fig
+
+'''

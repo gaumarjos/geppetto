@@ -15,7 +15,6 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 UPLOAD_DIRECTORY = "uploaded_files"
 
-
 app = Dash(__name__,
            title='Geppetto',
            external_stylesheets=external_stylesheets)
@@ -26,29 +25,35 @@ markdown_text = '''
 stats go here'''
 
 app.layout = html.Div([
+    # Where the dataset is stored
+    dcc.Store(id='store_dataframe'),
+
     html.Table([
         html.Tbody([
             html.Tr([
-                dcc.Upload(
-                        id='upload-data',
-                        children=html.Div([
-                            'Drag and Drop or ',
-                            html.A('Select File')
-                        ]),
-                        style={
-                            'width': '100%',
-                            'height': '40px',
-                            'lineHeight': '40px',
-                            'borderWidth': '1px',
-                            'borderStyle': 'dashed',
-                            'borderRadius': '5px',
-                            'textAlign': 'center',
-                            'margin': '10px'
-                        },
-                        # Allow multiple files to be uploaded
-                        multiple=False
-                    ),
-                html.Div(id='output-data-upload'),
+                # dcc.Upload(
+                #     id='upload-data',
+                #     children=html.Div([
+                #         'Drag and Drop or ',
+                #         html.A('Select File')
+                #     ]),
+                #     style={
+                #         'width': '100%',
+                #         'height': '40px',
+                #         'lineHeight': '40px',
+                #         'borderWidth': '1px',
+                #         'borderStyle': 'dashed',
+                #         'borderRadius': '5px',
+                #         'textAlign': 'center',
+                #         'margin': '10px'
+                #     },
+                #     # Allow multiple files to be uploaded
+                #     multiple=False
+                # ),
+                # html.Div(id='output-data-upload'),
+                dcc.Dropdown(os.listdir("tracks/"),
+                             os.listdir("tracks/")[0],
+                             id='imported_files'),
             ]),
             html.Tr([
                 html.Td([
@@ -102,84 +107,51 @@ app.layout = html.Div([
 ])
 
 
-
-
-
-
-
-
-
-def save_file(name, content):
-    """Decode and store a file uploaded with Plotly Dash."""
-    data = content.encode("utf8").split(b";base64,")[1]
-    with open(os.path.join(UPLOAD_DIRECTORY, name), "wb") as fp:
-        fp.write(base64.decodebytes(data))
-
-
-def uploaded_files():
-    """List the files in the upload directory."""
-    files = []
-    for filename in os.listdir(UPLOAD_DIRECTORY):
-        path = os.path.join(UPLOAD_DIRECTORY, filename)
-        if os.path.isfile(path):
-            files.append(filename)
-    return files
+# def save_file(name, content):
+#     """Decode and store a file uploaded with Plotly Dash."""
+#     data = content.encode("utf8").split(b";base64,")[1]
+#     with open(os.path.join(UPLOAD_DIRECTORY, name), "wb") as fp:
+#         fp.write(base64.decodebytes(data))
+#
+#
+# def uploaded_files():
+#     """List the files in the upload directory."""
+#     files = []
+#     for filename in os.listdir(UPLOAD_DIRECTORY):
+#         path = os.path.join(UPLOAD_DIRECTORY, filename)
+#         if os.path.isfile(path):
+#             files.append(filename)
+#     return files
+#
+#
+# @app.callback(
+#     Output('output-data-upload', 'children'),
+#     Input("upload-data", "filename"),
+#     Input("upload-data", "contents"),
+# )
+# def update_output(uploaded_filename, uploaded_file_content):
+#     """Save uploaded files and regenerate the file list."""
+#
+#     if uploaded_filename is not None and uploaded_file_content is not None:
+#         save_file(uploaded_filename, uploaded_file_content)
+#         print(uploaded_filename)
+#
+#     files = uploaded_files()
+#     if len(files) == 0:
+#         return [html.Li("No files yet!")]
+#     else:
+#         return files
+#         # return [html.Li(file_download_link(filename)) for filename in files]
 
 
 @app.callback(
-    Output('output-data-upload', 'children'),
-    Input("upload-data", "filename"),
-    Input("upload-data", "contents"),
+    Output('store_dataframe', 'data'),
+    Input('imported_files', 'value')
 )
-def update_output(uploaded_filename, uploaded_file_content):
-    """Save uploaded files and regenerate the file list."""
-
-    if uploaded_filename is not None and uploaded_file_content is not None:
-        save_file(uploaded_filename, uploaded_file_content)
-        print(uploaded_filename)
-
-    files = uploaded_files()
-    if len(files) == 0:
-        return [html.Li("No files yet!")]
-    else:
-        return files
-        #return [html.Li(file_download_link(filename)) for filename in files]
-
-
-
-
-
-
-
-
-
-
-"""
-@app.callback(Output('output-data-upload', 'children'),
-              Input('upload-data', 'contents'),
-              State('upload-data', 'filename'),
-              State('upload-data', 'last_modified'))
-def update_output(contents, name, date):
-    if contents is not None:
-        content_type, content_string = contents.split(',')
-        decoded = base64.b64decode(content_string)
-
-        trace = geppetto.Geppetto(decoded, type='content', debug_plots=0, csv=1)
-        print(trace)
-
-
-        '''
-        children = [
-            parse_contents(c, n, d) for c, n, d in
-            zip(list_of_contents, list_of_names, list_of_dates)]
-        return children
-        '''
-        return
-"""
-
-
-
-
+def load_trace(filename):
+    # Load trace
+    trace = geppetto.Geppetto(["tracks/" + filename])
+    return trace
 
 
 @app.callback(
