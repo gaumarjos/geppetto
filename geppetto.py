@@ -34,26 +34,6 @@ import os
 import fitdecode
 
 
-def colorscale(gradient_value, half_n=15):
-    """
-    Generate the color shade relative to a specific gradient value in a green - yellow - red scale of 2*half_n+1
-    values. If gradient value is beyond the extremes, the maximum values will be used.
-    E.g.:
-        gradient_value == -half_n --> green
-        gradient_value == 0 --> yellow
-        gradient_value == +half_n --> red
-    :param gradient_value: the gradient value
-    :param half_n: half of the number of shades minus 1 (the center value).
-    :return: a RGB tuple
-    """
-    a = np.arange((half_n - 0.5), -half_n, -1.0)
-    red = np.append(half_n * [255], np.linspace(255, 0, (half_n + 1)))
-    green = np.append(np.linspace(0, 255, (half_n + 1)), half_n * [255])
-    blue = (2 * half_n + 1) * [0]
-    i = np.digitize(gradient_value, a)
-    return "rgb({},{},{})".format(int(red[i]), int(green[i]), int(blue[i]))
-
-
 class Geppetto:
     def __init__(self, files, debug_plots=False, debug=False, csv=False):
         """
@@ -191,8 +171,9 @@ class Geppetto:
 
         # Go through all files
         for file in files:
-            print()
-            print("-------- Filename: {} --------".format(file))
+            if debug:
+                print()
+                print("-------- Filename: {} --------".format(file))
 
             name, extension = os.path.splitext(file)
             if extension == ".gpx":
@@ -267,18 +248,6 @@ class Geppetto:
             df['c_dist_geo2d'] = c_dist_geo2d
             df['c_dist_geo3d'] = c_dist_geo3d
 
-            # Stats
-            print("Spherical Distance 2D: {:.3f} km".format(c_dist_sph2d[-1] / 1000))
-            print("Spherical Distance 3D: {:.3f} km".format(c_dist_sph3d[-1] / 1000))
-            print("Elevation Correction (spherical 3D-2D): {:.0f} m".format((c_dist_sph3d[-1]) - (c_dist_sph2d[-1])))
-            print("Geodesic Distance 2D: {:.3f} km".format(c_dist_geo2d[-1] / 1000))
-            print("Geodesic Distance 3D: {:.3f} km".format(c_dist_geo3d[-1] / 1000))
-            print("Elevation Correction (geodesic 3D-2D): {:.0f} m".format((c_dist_geo3d[-1]) - (c_dist_geo2d[-1])))
-            print("Model Difference (spherical-geodesic 3D): {:.0f} m".format((c_dist_geo3d[-1]) - (c_dist_sph3d[-1])))
-            print("Total Time: {}".format(str(datetime.timedelta(seconds=sum(c_delta_time)))))
-            print(f"Elevation Gain: {round(sum(df[df['c_delta_elev'] > 0]['c_delta_elev']), 2)}")
-            print(f"Elevation Loss: {round(sum(df[df['c_delta_elev'] < 0]['c_delta_elev']), 2)}")
-
             if debug_plots:
                 fig_3 = px.line(df, x='time', y='c_dist_geo3d', template='plotly_dark')
                 fig_3.show()
@@ -311,13 +280,6 @@ class Geppetto:
 
             # Remove idle points and compare average speeds
             df_moving = df[df['c_speed'] >= 0.9]
-            avg_speed = sum((df['c_speed'] * df['c_delta_time'])) / sum(df['c_delta_time'])
-            avg_mov_speed = sum((df_moving['c_speed'] * df_moving['c_delta_time'])) / sum(
-                df_moving['c_delta_time'])
-            print("Maximum Speed: {} km/h".format(round((3.6 * df['c_speed'].max(axis=0)), 2)))
-            print("Average Speed: {} km/h".format(round((3.6 * avg_speed), 2)))
-            print("Average Moving Speed: {} km/h".format(round((3.6 * avg_mov_speed), 2)))
-            print("Moving Time: {}".format(str(datetime.timedelta(seconds=sum(df_moving['c_delta_time'])))))
 
             # Coarsely filter speed to remove outliers (this is a bad way to do it, a Kalman filter should be used)
             df['c_speed_filtered'] = df['c_speed'].rolling(20, center=True).mean()
@@ -348,6 +310,46 @@ class Geppetto:
             # Save to CSV for further processing (it's going to be faster even than just reimporting a GPX)
             if csv:
                 df.to_csv("{}.csv".format(name))
+
+    def stats(self, trace_nr=0):
+        df = self.df[trace_nr]
+        df_moving = self.df_moving[trace_nr]
+
+        stats = '''
+        ** Stats **
+        
+        Geodesic Distance 2D: {c_dist_geo2d:.3f} km
+        
+        Geodesic Distance 3D: {c_dist_geo3d:.3f} km
+        
+        Elevation Correction (geodesic 3D-2D): {delta_c_dist_sph:.0f} m
+        
+        Total Time: {total_time}
+        
+        Elevation Gain: {elev_gain:.0f}
+        
+        Elevation Loss: {elev_loss:.0f}
+        
+        Maximum Speed: {max_c_speed:.1f} km/h
+        
+        Average Speed: {avg_c_speed:.1f} km/h
+        
+        Average Moving Speed: {avg_moving_c_speed} km/h
+        
+        Moving Time: {moving_time}
+'''.format(c_dist_geo2d=df['c_dist_geo2d'].iloc[-1] / 1000,
+           c_dist_geo3d=df['c_dist_geo3d'].iloc[-1] / 1000,
+           delta_c_dist_sph=df['c_dist_geo3d'].iloc[-1] - df['c_dist_geo2d'].iloc[-1],
+           total_time=str(datetime.timedelta(seconds=sum(df['c_delta_time']))),
+           elev_gain=round(sum(df[df['c_delta_elev'] > 0]['c_delta_elev']), 2),
+           elev_loss=round(sum(df[df['c_delta_elev'] < 0]['c_delta_elev']), 2),
+           max_c_speed=round((3.6 * df['c_speed'].max(axis=0)), 2),
+           avg_c_speed=round((3.6 * sum((df['c_speed'] * df['c_delta_time'])) / sum(df['c_delta_time'])), 2),
+           avg_moving_c_speed=round(
+               (3.6 * sum((df_moving['c_speed'] * df_moving['c_delta_time'])) / sum(df_moving['c_delta_time'])), 2),
+           moving_time=str(datetime.timedelta(seconds=sum(df_moving['c_delta_time']))))
+
+        return stats
 
     def plot_maps(self):
         """
@@ -416,16 +418,19 @@ class Geppetto:
                 df_segment = df_segment.iloc[interval[0]:interval[1]]
         return df_segment
 
-    def plot_map(self, interval_unit="m", interval=(0, 0), trace_nr=0):
+    def plot_map(self, map_trace_color_param='elev', interval_unit="m", interval=(0, 0), trace_nr=0):
         """
 
+        :param map_trace_color_param:
         :param interval_unit:
         :param interval:
         :param trace_nr:
         :return:
         """
 
-        df_selection = self.copy_segment(columns=["lon", "lat", "c_dist_geo2d", "elev"],
+        assert map_trace_color_param in ('elev', 'c_dist_geo2d', 'c_speed')
+
+        df_selection = self.copy_segment(columns=["lon", "lat", "c_dist_geo2d", "elev", 'c_speed'],
                                          interval_unit=interval_unit,
                                          interval=interval,
                                          trace_nr=trace_nr)
@@ -435,7 +440,7 @@ class Geppetto:
                                        lon=df_selection["lon"],
                                        mode='lines+markers',
                                        marker=go.scattermapbox.Marker(size=6,
-                                                                      color=df_selection["elev"],
+                                                                      color=df_selection[map_trace_color_param],
                                                                       colorscale=px.colors.sequential.Bluered),
                                        hovertext=df_selection['c_dist_geo2d'],
                                        subplot='mapbox',
@@ -458,7 +463,7 @@ class Geppetto:
         fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
         return fig
 
-    def plot_elevation(self):
+    def plot_elevation(self, hover_index=None):
         """
         Plots all traces that were imported.
         :return: Plots
@@ -467,9 +472,39 @@ class Geppetto:
         fig.add_trace(go.Scatter(x=self.df[0]["c_dist_geo2d"],
                                  y=self.df[0]["elev"],
                                  mode='lines+markers',
+                                 line=dict(
+                                     width=1,
+                                     color="red"),
+                                 marker=dict(
+                                     size=1,
+                                     color="red")
                                  ),
                       )
-        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+
+        # Yellow dot
+        if hover_index is not None:
+            assert hover_index >= 0
+            fig.add_trace(go.Scatter(x=[self.df[0].iloc[hover_index]['c_dist_geo2d']],
+                                     y=[self.df[0].iloc[hover_index]['elev']],
+                                     mode='markers',
+                                     name="",
+                                     marker=dict(
+                                         size=4,
+                                         color="yellow"),
+                                     )
+                          )
+
+        fig.update_xaxes(showgrid=True,
+                         showspikes=True,
+                         title="2D distance (m)")
+        fig.update_yaxes(showgrid=True)
+        fig.add_annotation(x=0.02, y=0.85, xanchor='left', yanchor='bottom',
+                           xref='paper', yref='paper', showarrow=False, align='left',
+                           text="Elevation")
+        fig.update_layout(height=225,
+                          margin={'l': 0, 'b': 0, 'r': 0, 't': 0},
+                          hovermode='x')
+
         return fig
 
     def gradient(self, interval_unit="m", interval=(0, 0), resolution=1000, trace_nr=0, show_map=False):
@@ -480,8 +515,27 @@ class Geppetto:
         :param resolution: the "step" in which the gradient tis calculated/averaged, in meters
         :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
         :param show_map: show a minimap in the bottom right corner
-        :return: two dataframes, the first with all elevation values and the second with gradient values at specific distances "resolution" meters apart.
+        :return: a figure
         """
+
+        def gradient_colorscale(gradient_value, half_n=15):
+            """
+            Generate the color shade relative to a specific gradient value in a green - yellow - red scale of 2*half_n+1
+            values. If gradient value is beyond the extremes, the maximum values will be used.
+            E.g.:
+                gradient_value == -half_n --> green
+                gradient_value == 0 --> yellow
+                gradient_value == +half_n --> red
+            :param gradient_value: the gradient value
+            :param half_n: half of the number of shades minus 1 (the center value).
+            :return: a RGB tuple
+            """
+            a = np.arange((half_n - 0.5), -half_n, -1.0)
+            red = np.append(half_n * [255], np.linspace(255, 0, (half_n + 1)))
+            green = np.append(np.linspace(0, 255, (half_n + 1)), half_n * [255])
+            blue = (2 * half_n + 1) * [0]
+            bin_index = np.digitize(gradient_value, a)
+            return "rgb({},{},{})".format(int(red[bin_index]), int(green[bin_index]), int(blue[bin_index]))
 
         # Create a local copy of the input array of dataframes containing only the points belonging to the portion,
         # usually a climb, of interest
@@ -523,7 +577,7 @@ class Geppetto:
             fig.add_trace(go.Scatter(x=portion['c_dist_geo2d_neg'],
                                      y=portion['elev'],
                                      fill='tozeroy',
-                                     fillcolor=colorscale(g),
+                                     fillcolor=gradient_colorscale(g),
                                      mode='none',
                                      name='',
                                      showlegend=False),
@@ -535,7 +589,7 @@ class Geppetto:
                                showarrow=False,
                                arrowhead=0)
 
-        # Map (1,2)
+        # Minimap
         if show_map:
             fig.add_trace(go.Scattermapbox(lat=df_climb["lat"],
                                            lon=df_climb["lon"],
@@ -585,43 +639,43 @@ class Geppetto:
         :param interval: [start_meter, end_meter]
         :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
         :param total_mass: bike + rider
+        :param filter_window: size of the rolling average filter window. 0 = no filter.
         :param debug_plots: toggle intermediate debug plots
-        :return: the same dataframe it was given as input (or a portion of it) with columns c_power_air,  c_power_roll,
-                 c_power_grav and a total  c_power added.
+        :return: a figure
         """
 
-        def power_air(speed, altitude, temperature_degc, coefficient_drag_area=0.28, losses_drivetrain=0.051):
+        def power_air(speed, altitude, temperature_degc, CdA=0.28, losses_drivetrain=0.051):
             """
             :param speed: [m/s]
             :param altitude: [m]
             :param temperature_degc: [°C]
-            :param coefficient_drag_area: Coefficient of drag * area, to be estimated based
+            :param CdA: Coefficient of drag * area, to be estimated based
             :param losses_drivetrain: pedaling and drivetrain efficiency
             :return: [W]
             """
             # Air density
-            L = 0.0065
-            T0 = 298
-            M = 0.02896
-            Rs = 287.058
+            L = 0.0065  # approximate rate of decrease in temperature with elevation
+            T0 = 298  # sea level standard temperature
+            M = 0.02896  # molar mass of dry air
+            Rs = 287.058  # specific gas constant
             temperature_kelvin = temperature_degc + 273.15
             p_exp = M * const.g / (const.R * L)
             p = const.atm * (1 - (L * altitude / T0)) ** p_exp
             rho = p / (Rs * temperature_kelvin)  # kg/m^3
-            force_air = 0.5 * coefficient_drag_area * rho * speed ** 2
+            force_air = 0.5 * CdA * rho * speed ** 2
             return force_air * speed / (1.0 - losses_drivetrain)
 
-        def power_roll(gradient, m, speed, coefficient_rollingresistance=0.00321, losses_drivetrain=0.051):
+        def power_roll(gradient, m, speed, Crr=0.00321, losses_drivetrain=0.051):
             """
             Estimate rolling resistance for the 2 tires (TBC)
             :param gradient: ratio
             :param m: [kg]
             :param speed: [m/s]
-            :param coefficient_rollingresistance: 0.00321 for one Continental GP5000 @6.9bar
+            :param Crr: 0.00321 for one Continental GP5000 @6.9bar
             :param losses_drivetrain: pedaling and drivetrain efficiency
             :return: [W]
             """
-            force_roll = 2. * coefficient_rollingresistance * np.cos(np.arctan(gradient)) * m * const.g
+            force_roll = 2. * Crr * np.cos(np.arctan(gradient)) * m * const.g
             return force_roll * speed / (1.0 - losses_drivetrain)
 
         def power_grav(gradient, m, speed, losses_drivetrain=0.051):
@@ -681,8 +735,6 @@ class Geppetto:
         # B) Set all negative powers to zero
         df_selection.loc[df_selection["c_power"] < 0.0, "c_power"] = 0
 
-        print("Average power: {} W".format(np.mean(df_selection['c_power'])))
-
         # Generate figure
         fig = make_subplots(rows=1, cols=1, shared_xaxes=True, specs=[[{"secondary_y": True}]])
 
@@ -732,6 +784,10 @@ class Geppetto:
         fig.update_yaxes(showspikes=True, secondary_y=False)
         fig.update_yaxes(showspikes=True, secondary_y=True)
         fig.update_xaxes(showspikes=True)
+
+        fig.add_annotation(x=0.02, y=0.85, xanchor='left', yanchor='bottom',
+                           xref='paper', yref='paper', showarrow=False, align='left',
+                           text="Average power: {:.0f} W".format(np.mean(df_selection['c_power'])))
 
         fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},
                           hovermode='x')
@@ -805,8 +861,9 @@ def main():
                             plots=True)
 
     if 1:
-        alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], debug=0, debug_plots=0, csv=1)
-        alpe.plot_map().show()
+        alpe = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx"], debug=0, debug_plots=0)
+        print(alpe.stats())
+        # alpe.plot_map().show()
         # alpe.plot_elevation().show()
         # alpe.gradient(interval=[33739, 48124], resolution=500).show()
         # alpe.estimate_power(interval=[33739, 48124]).show()
