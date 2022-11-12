@@ -17,6 +17,7 @@ https://plotly.com/python/mapbox-layers/#using-layoutmapboxlayers-to-specify-a-b
 
 Dash
 https://dash.plotly.com/interactive-graphing
+https://dash.plotly.com/sharing-data-between-callbacks
 """
 
 import numpy as np
@@ -40,8 +41,10 @@ def load(files, debug_plots=False, debug=False, csv=False):
     processing is done independently using local variables and the results are then appended to a class variable.
     All speeds are in m/s unless km/h are specified (and that can happen only in plots).
     If multiple files are loaded, an array of Dataframes is created.
-
     :param files: an array of .gpx files
+    :param debug_plots: activates debug plots
+    :param debug: verbose
+    :param csv: dumps the df dataframe into a csv
     """
 
     # Replacement value
@@ -109,8 +112,7 @@ def load(files, debug_plots=False, debug=False, csv=False):
 
             local_df = pd.DataFrame(
                 columns=['time', 'lon', 'lat', 'dist', 'elev', 'enhanced_elev', 'speed', 'enhanced_speed', 'atemp',
-                         'hr',
-                         'cad', 'fractional_cad'])
+                         'hr', 'cad', 'fractional_cad'])
 
             for frame in fit:
                 if isinstance(frame, fitdecode.records.FitDataMessage):
@@ -310,11 +312,11 @@ def load(files, debug_plots=False, debug=False, csv=False):
         if csv:
             df.to_csv("{}.csv".format(name))
 
-        return df_list, df_moving_list, file_list
+    return df_list, df_moving_list, file_list
 
 
 def stats(df, df_moving):
-    stats = '''
+    s = '''
     ** Stats **
     
     Geodesic Distance 2D: {c_dist_geo2d:.3f} km
@@ -348,7 +350,7 @@ def stats(df, df_moving):
                (3.6 * sum((df_moving['c_speed'] * df_moving['c_delta_time'])) / sum(df_moving['c_delta_time'])), 2),
            moving_time=str(datetime.timedelta(seconds=sum(df_moving['c_delta_time']))))
 
-    return stats
+    return s
 
 
 def plot_maps(df_list, file_list):
@@ -387,12 +389,12 @@ def plot_maps(df_list, file_list):
 
 def copy_segment(df, columns, interval_unit="m", interval=(0, 0)):
     """
-    Return a portion of one trace of the list of Dataframes
+    Return a portion of one dataframe
+    :param df: dataframe to operate on
     :param columns: columns that will be copied, it makes no sense to copy all because that will complicate
     operations such as interpolate unnecessarily
     :param interval_unit: can be "m" for meters or "i" for index
     :param interval: extremes (included) of the segment, in m
-    :param trace_nr: the position of the trace in the array of Dataframes
     :return:
     """
     # Select only the points belonging to the climb
@@ -423,10 +425,10 @@ def copy_segment(df, columns, interval_unit="m", interval=(0, 0)):
 def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0)):
     """
 
+    :param df: dataframe to operate on
     :param map_trace_color_param:
     :param interval_unit:
     :param interval:
-    :param trace_nr:
     :return:
     """
 
@@ -514,10 +516,10 @@ def plot_elevation(df, hover_index=None):
 def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=False):
     """
     Computes the gradient over a portion of one dataframe
+    :param df: dataframe to operate on
     :param interval_unit: can be "m" for meters or "i" for index
     :param interval: the gradient is calculated over the portion [start_meter, end_meter] of the input trace
     :param resolution: the "step" in which the gradient tis calculated/averaged, in meters
-    :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
     :param show_map: show a minimap in the bottom right corner
     :return: a figure
     """
@@ -639,9 +641,9 @@ def estimate_power(df,
                    debug_plots=False):
     """
     Estimates the power over a portion of one dataframe
+    :param df: dataframe to operate on
     :param interval_unit: can be "m" for meters or "i" for index
     :param interval: [start_meter, end_meter]
-    :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
     :param total_mass: bike + rider
     :param filter_window: size of the rolling average filter window. 0 = no filter.
     :param debug_plots: toggle intermediate debug plots
@@ -800,8 +802,8 @@ def estimate_power(df,
 def cadence_speed_curve(df, interval=(0, 0)):
     """
     This method operates on only one trace
+    :param df: dataframe to operate on
     :param interval: [start_meter, end_meter]
-    :param trace_nr: in case multiple files are loaded at init, whose we want to compute the gradient
     :return: plots
     """
 
@@ -850,21 +852,21 @@ def main():
     :return: nothing
     """
 
-    if 0:
-        geppetto = Geppetto(["tracks/The_missing_pass_W3_D2_.gpx",
-                             "tracks/Local_passes_gravel_edition_.gpx",
-                             "tracks/Two_more_W20_D3_.gpx",
-                             "tracks/The_local_4_or_5_passes.gpx",
-                             "tracks/More_local_passes_W17_D3_.gpx",
-                             "tracks/More_local_4_passes.gpx",
-                             "tracks/More_and_more_local_passes_W19_D3_.gpx",
-                             "tracks/Even_more_local_passes.gpx",
-                             "tracks/Cisa_e_Cirone.gpx",
-                             "tracks/Autumnal_chestnut_trees_Cisa_and_Brattello.gpx",
-                             ],
-                            plots=True)
-
     if 1:
+        df_list, df_moving_list, file_list = load(["tracks/The_missing_pass_W3_D2_.gpx",
+                                                   "tracks/Local_passes_gravel_edition_.gpx",
+                                                   "tracks/Two_more_W20_D3_.gpx",
+                                                   "tracks/The_local_4_or_5_passes.gpx",
+                                                   "tracks/More_local_passes_W17_D3_.gpx",
+                                                   "tracks/More_local_4_passes.gpx",
+                                                   "tracks/More_and_more_local_passes_W19_D3_.gpx",
+                                                   "tracks/Even_more_local_passes.gpx",
+                                                   "tracks/Cisa_e_Cirone.gpx",
+                                                   "tracks/Autumnal_chestnut_trees_Cisa_and_Brattello.gpx",
+                                                   ])
+        plot_maps(df_list, file_list).show()
+
+    if 0:
         df_list, df_moving_list, file_list = load(["tracks/The_missing_pass_W3_D2_.gpx"])
         df = df_list[0]
         df_moving = df_moving_list[0]
