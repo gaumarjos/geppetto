@@ -1,25 +1,3 @@
-"""
-DOCUMENTATION
-
-Importing
-https://towardsdatascience.com/parsing-fitness-tracker-data-with-python-a59e7dc17418
-
-Maths
-https://thatmaceguy.github.io/python/gps-data-analysis-intro/
-https://rkurchin.github.io/posts/2020/05/ftp
-
-Plotly
-https://plotly.com/python/mapbox-layers/
-https://plotly.com/python/builtin-colorscales/
-https://github.com/plotly/plotly.py/issues/1728
-https://plotly.com/python/filled-area-plots/
-https://plotly.com/python/mapbox-layers/#using-layoutmapboxlayers-to-specify-a-base-map
-
-Dash
-https://dash.plotly.com/interactive-graphing
-https://dash.plotly.com/sharing-data-between-callbacks
-"""
-
 import numpy as np
 import gpxpy
 import gpxpy.gpx
