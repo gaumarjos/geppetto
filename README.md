@@ -12,6 +12,10 @@ Developed with Python 10.0.0. Install required modules with:
 
     pip install -r requirements.txt
 
+Although unnecessary, a Mapbox token can be added in this file:
+
+    mapbox_token.txt
+
 ## Project structure
 
 * `app.py` is the web app
