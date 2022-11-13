@@ -1,4 +1,5 @@
 from dash import Dash, html, dcc, Input, Output, State
+import dash_bootstrap_components as dbc
 import pandas as pd
 import os
 
@@ -7,93 +8,237 @@ import geppetto
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 TRACK_DIRECTORY = "tracks/"
 
+colors = {
+    'background': '#222222',
+    'text': '#7FDBFF',
+    'stats': 'eeeeee',
+}
+
 app = Dash(__name__,
            title='Geppetto',
-           external_stylesheets=external_stylesheets)
+           external_stylesheets=[dbc.themes.FLATLY]
+           )
 
-app.layout = html.Div([
-    # Where the dataset is stored
-    dcc.Store(id='store_df'),
-    dcc.Store(id='store_df_moving'),
+app.layout = html.Div(
+    # style={'backgroundColor': colors['background']},
+    children=
+    [
+        # Where the dataset is stored
+        dcc.Store(id='store_df'),
+        dcc.Store(id='store_df_moving'),
 
-    html.Table([
-        html.Tbody([
-            html.Tr([
-                # dcc.Upload(
-                #     id='upload-data',
-                #     children=html.Div([
-                #         'Drag and Drop or ',
-                #         html.A('Select File')
-                #     ]),
-                #     style={
-                #         'width': '100%',
-                #         'height': '40px',
-                #         'lineHeight': '40px',
-                #         'borderWidth': '1px',
-                #         'borderStyle': 'dashed',
-                #         'borderRadius': '5px',
-                #         'textAlign': 'center',
-                #         'margin': '10px'
-                #     },
-                #     # Allow multiple files to be uploaded
-                #     multiple=False
-                # ),
-                # html.Div(id='output-data-upload'),
-                dcc.Dropdown(os.listdir(TRACK_DIRECTORY),
-                             os.listdir(TRACK_DIRECTORY)[0],
-                             id='imported_files'),
-            ]),
-            html.Tr([
-                html.Td([
-                    html.Div([
-                        dcc.Dropdown([{'label': 'Elevation', 'value': 'elev'},
-                                      {'label': 'Speed', 'value': 'c_speed'},
-                                      {'label': 'Distance', 'value': 'c_dist_geo2d'}],
-                                     'elev',
-                                     id='map_trace_color'),
+        # Title bar
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        html.H1(
+                            children='GePpetto',
+                            style={
+                                'textAlign': 'center',
+                            }
+                        ),
+                    ],
+                    width=12,
+                )
+            ],
+            className="g-0",
+        ),
+
+        # File selection bar
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        dcc.Dropdown(
+                            os.listdir(TRACK_DIRECTORY),
+                            os.listdir(TRACK_DIRECTORY)[0],
+                            id='imported_files',
+                            searchable=True,
+                            style={"margin-left": "40px",
+                                   "margin-right": "40px",
+                                   }
+                        ),
+                    ],
+                    width=12,
+                )
+            ]
+        ),
+
+        # Map, elevation and stats
+        dbc.Row(
+            [
+                # Spacer sx
+                dbc.Col(
+                    [
+                    ],
+                    width=1
+                ),
+                # Map and elevation
+                dbc.Col(
+                    [
+                        dcc.Dropdown(
+                            [
+                                {'label': 'Elevation', 'value': 'elev'},
+                                {'label': 'Speed', 'value': 'c_speed'},
+                                {'label': 'Distance', 'value': 'c_dist_geo2d'}
+                            ],
+                            'elev',
+                            style={},
+                            id='map_trace_color'),
                         dcc.Graph(id='map_graph',
-                                  animate=False),
-                        dcc.Graph(id='elevation_graph'),
-                        dcc.Markdown(children='''Stats go here''', id='markdown_stats')
+                                  style={},
+                                  animate=False,
+                                  ),
                     ],
-                        style={'width': '100%',
-                               'height': '100%',
-                               'padding': '0 0',
-                               'float': 'left'},
-                        id="left_col"),
-                ],
-                    style={'width': '50%'}),
-                html.Td([
-                    html.Div([
-                        html.Div([
-                            dcc.Slider(0, 20, 2,
-                                       value=4,
-                                       id='power_filter_slider'
-                                       ),
-                            dcc.Graph(id='power_graph'),
-                        ],
-                            id="power"),
-                        html.Div([
-                            dcc.Dropdown(['100', '200', '500', '1000'],
-                                         '500',
-                                         id='gradient_resolution'),
-                            dcc.Graph(id='gradient_graph')
-                        ],
-                            id="debug"),
+                    width=7,
+                ),
+                # Stats and spacer dx
+                dbc.Col(
+                    [
+                        dcc.Markdown(style={
+                            'textAlign': 'left',
+                        },
+                            id='markdown_stats'
+                        ),
                     ],
-                        style={'width': '100%',
-                               'height': '100%',
-                               'padding': '0 0',
-                               'float': 'right'},
-                        id="right_col"),
-                ],
-                    style={'width': '50%'})
-            ])
-        ]),
-    ],
-        style={"width": "100%"}),
+                    width=4
+                ),
+            ]
+        ),
 
-])
+        # Elevation
+        dbc.Row(
+            [
+                # Spacer sx
+                dbc.Col(
+                    [
+                    ],
+                    width=1
+                ),
+
+                # Elevation
+                dbc.Col(
+                    [
+                        dcc.Graph(id='elevation_graph',
+                                  style={},
+                                  ),
+                    ],
+                    width=10,
+                ),
+
+                # Spacer dx
+                dbc.Col(
+                    [
+                    ],
+                    width=1
+                ),
+            ],
+        ),
+
+        # Spacer
+        dbc.Row(
+            [
+                html.Div(
+                    style={
+                        "height": "60px"
+                    },
+                    id='spacer1'
+                )
+            ]
+        ),
+
+        # Power
+        dbc.Row(
+            [
+                # Spacer sx
+                dbc.Col(
+                    [
+                    ],
+                    width=1
+                ),
+
+                # Power
+                dbc.Col(
+                    [
+                        dbc.Row(
+                            [
+                                html.Div("Filter"),
+                                dcc.Slider(0, 20, 2,
+                                           value=4,
+                                           id='power_filter_slider'
+                                           ),
+                            ]
+                        ),
+                        dbc.Row(
+                            [
+                                dcc.Graph(id='power_graph'),
+                            ]
+                        ),
+                    ],
+                    width=10,
+                ),
+
+                # Spacer dx
+                dbc.Col(
+                    [
+                    ],
+                    width=1
+                ),
+            ],
+        ),
+
+        # Spacer
+        dbc.Row(
+            [
+                html.Div(
+                    style={
+                        "height": "60px"
+                    },
+                    id='spacer2'
+                )
+            ]
+        ),
+
+        # Gradient
+        dbc.Row(
+            [
+                # Spacer sx
+                dbc.Col(
+                    [
+                    ],
+                    width=1
+                ),
+                # Gradient
+                dbc.Col(
+                    [
+                        dbc.Row(
+                            [
+                                html.Div("Step (m)"),
+                                dcc.Dropdown(['100', '200', '500', '1000'],
+                                             '500',
+                                             id='gradient_resolution'),
+                            ]
+                        ),
+                        dbc.Row(
+                            [
+                                dcc.Graph(id='gradient_graph')
+                            ]
+                        ),
+                    ],
+                    width=10,
+                ),
+
+                # Spacer dx
+                dbc.Col(
+                    [
+                    ],
+                    width=1
+                ),
+            ]
+        ),
+    ]
+)
 
 
 # def save_file(name, content):
@@ -132,7 +277,6 @@ app.layout = html.Div([
 #         return files
 #         # return [html.Li(file_download_link(filename)) for filename in files]
 
-
 @app.callback(
     Output('store_df', 'data'),
     Output('store_df_moving', 'data'),
@@ -140,10 +284,13 @@ app.layout = html.Div([
 )
 def load_trace(filename):
     # Load trace
-    df_list, df_moving_list, _ = geppetto.load([TRACK_DIRECTORY + filename])
-    df = df_list[0]
-    df_moving = df_moving_list[0]
-    return df.to_json(date_format='iso', orient='split'), df_moving.to_json(date_format='iso', orient='split')
+    if filename is not None:
+        df_list, df_moving_list, _ = geppetto.load([TRACK_DIRECTORY + filename])
+        df = df_list[0]
+        df_moving = df_moving_list[0]
+        return df.to_json(date_format='iso', orient='split'), df_moving.to_json(date_format='iso', orient='split')
+    else:
+        return None, None
 
 
 @app.callback(
@@ -153,38 +300,40 @@ def load_trace(filename):
     Input('map_trace_color', 'value')
 )
 def update_map(jsonified_df, selected_points, map_trace_color):
-    df = pd.read_json(jsonified_df, orient='split')
-    if selected_points is not None:
-        selected_indexes = [d['pointIndex'] for d in selected_points['points']]
-        fig = geppetto.plot_map2(df=df,
-                                 map_trace_color_param=map_trace_color,
-                                 interval_unit="i",
-                                 interval=[min(selected_indexes), max(selected_indexes)] if len(
-                                     selected_indexes) > 0 else [0, 0])
-    else:
-        fig = geppetto.plot_map2(df=df,
-                                 map_trace_color_param=map_trace_color,
-                                 interval_unit="i",
-                                 interval=[0, 0])
+    if jsonified_df is not None:
+        df = pd.read_json(jsonified_df, orient='split')
+        if selected_points is not None:
+            selected_indexes = [d['pointIndex'] for d in selected_points['points']]
+            fig = geppetto.plot_map2(df=df,
+                                     map_trace_color_param=map_trace_color,
+                                     interval_unit="i",
+                                     interval=[min(selected_indexes), max(selected_indexes)] if len(
+                                         selected_indexes) > 0 else [0, 0])
+        else:
+            fig = geppetto.plot_map2(df=df,
+                                     map_trace_color_param=map_trace_color,
+                                     interval_unit="i",
+                                     interval=[0, 0])
 
-    return fig
+        return fig
 
 
 @app.callback(
     Output('elevation_graph', 'figure'),
     Input('store_df', 'data'),
-    #Input('map_graph', 'hoverData')
+    # Input('map_graph', 'hoverData')
 )
-def update_elevation_graph(jsonified_df):#, hoverData):
-    df = pd.read_json(jsonified_df, orient='split')
-    hover_index = None
-    # if hoverData is not None:
-    #     hover_index = hoverData['points'][0]['pointIndex']
+def update_elevation_graph(jsonified_df):  # , hoverData):
+    if jsonified_df is not None:
+        df = pd.read_json(jsonified_df, orient='split')
+        hover_index = None
+        # if hoverData is not None:
+        #     hover_index = hoverData['points'][0]['pointIndex']
 
-    fig = geppetto.plot_elevation(df=df,
-                                  hover_index=hover_index)
+        fig = geppetto.plot_elevation(df=df,
+                                      hover_index=hover_index)
 
-    return fig
+        return fig
 
 
 @app.callback(
@@ -194,22 +343,23 @@ def update_elevation_graph(jsonified_df):#, hoverData):
     Input('gradient_resolution', 'value'),
 )
 def update_gradient(jsonified_df, selected_points, gradient_resolution):
-    df = pd.read_json(jsonified_df, orient='split')
-    if selected_points is not None:
-        selected_indexes = [d['pointIndex'] for d in selected_points['points']]
-        fig = geppetto.gradient(df=df,
-                                interval_unit="i",
-                                interval=[min(selected_indexes), max(selected_indexes)] if len(
-                                    selected_indexes) > 0 else [0, 0],
-                                resolution=int(gradient_resolution),
-                                show_map=True)
-    else:
-        fig = geppetto.gradient(df=df,
-                                interval_unit="i",
-                                interval=[0, 0],
-                                resolution=1000)
+    if jsonified_df is not None:
+        df = pd.read_json(jsonified_df, orient='split')
+        if selected_points is not None:
+            selected_indexes = [d['pointIndex'] for d in selected_points['points']]
+            fig = geppetto.gradient(df=df,
+                                    interval_unit="i",
+                                    interval=[min(selected_indexes), max(selected_indexes)] if len(
+                                        selected_indexes) > 0 else [0, 0],
+                                    resolution=int(gradient_resolution),
+                                    show_map=True)
+        else:
+            fig = geppetto.gradient(df=df,
+                                    interval_unit="i",
+                                    interval=[0, 0],
+                                    resolution=1000)
 
-    return fig
+        return fig
 
 
 @app.callback(
@@ -219,21 +369,22 @@ def update_gradient(jsonified_df, selected_points, gradient_resolution):
     Input('power_filter_slider', 'value'),
 )
 def update_power(jsonified_df, selected_points, power_filter_slider):
-    df = pd.read_json(jsonified_df, orient='split')
-    if selected_points is not None:
-        selected_indexes = [d['pointIndex'] for d in selected_points['points']]
-        fig = geppetto.estimate_power(df=df,
-                                      interval_unit="i",
-                                      interval=[min(selected_indexes), max(selected_indexes)] if len(
-                                          selected_indexes) > 0 else [0, 0],
-                                      filter_window=int(power_filter_slider))
-    else:
-        fig = geppetto.estimate_power(df=df,
-                                      interval_unit="i",
-                                      interval=[0, 0],
-                                      filter_window=int(power_filter_slider))
+    if jsonified_df is not None:
+        df = pd.read_json(jsonified_df, orient='split')
+        if selected_points is not None:
+            selected_indexes = [d['pointIndex'] for d in selected_points['points']]
+            fig = geppetto.estimate_power(df=df,
+                                          interval_unit="i",
+                                          interval=[min(selected_indexes), max(selected_indexes)] if len(
+                                              selected_indexes) > 0 else [0, 0],
+                                          filter_window=int(power_filter_slider))
+        else:
+            fig = geppetto.estimate_power(df=df,
+                                          interval_unit="i",
+                                          interval=[0, 0],
+                                          filter_window=int(power_filter_slider))
 
-    return fig
+        return fig
 
 
 @app.callback(
@@ -243,9 +394,10 @@ def update_power(jsonified_df, selected_points, power_filter_slider):
     Input('elevation_graph', 'selectedData'),
 )
 def update_stats(jsonified_df, jsonified_df_moving, elevation_graph):
-    df = pd.read_json(jsonified_df, orient='split')
-    df_moving = pd.read_json(jsonified_df_moving, orient='split')
-    return geppetto.stats(df=df, df_moving=df_moving)
+    if (jsonified_df is not None) and (jsonified_df_moving is not None):
+        df = pd.read_json(jsonified_df, orient='split')
+        df_moving = pd.read_json(jsonified_df_moving, orient='split')
+        return geppetto.stats(df=df, df_moving=df_moving)
 
 
 '''

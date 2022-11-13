@@ -52,3 +52,5 @@ Developed with Python 10.0.0. Install required modules with:
 ### Dash
 * https://dash.plotly.com/interactive-graphing
 * https://dash.plotly.com/sharing-data-between-callbacks
+* https://dash-bootstrap-components.opensource.faculty.ai/docs/components/layout/
+* https://getbootstrap.com/docs/5.1/layout/gutters/

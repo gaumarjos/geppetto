@@ -297,25 +297,25 @@ def stats(df, df_moving):
     s = '''
     ** Stats **
     
-    Geodesic Distance 2D: {c_dist_geo2d:.3f} km
+    Geodesic Distance 2D: **{c_dist_geo2d:.3f} km**
     
-    Geodesic Distance 3D: {c_dist_geo3d:.3f} km
+    Geodesic Distance 3D: **{c_dist_geo3d:.3f} km**
     
-    Elevation Correction (geodesic 3D-2D): {delta_c_dist_sph:.0f} m
+    Elevation Correction (geodesic 3D-2D): **{delta_c_dist_sph:.0f} m**
     
-    Total Time: {total_time}
+    Total Time: **{total_time}**
     
-    Elevation Gain: {elev_gain:.0f}
+    Elevation Gain: **{elev_gain:.0f}**
     
-    Elevation Loss: {elev_loss:.0f}
+    Elevation Loss: **{elev_loss:.0f}**
     
-    Maximum Speed: {max_c_speed:.1f} km/h
+    Maximum Speed: **{max_c_speed:.1f} km/h**
     
-    Average Speed: {avg_c_speed:.1f} km/h
+    Average Speed: **{avg_c_speed:.1f} km/h**
     
-    Average Moving Speed: {avg_moving_c_speed} km/h
+    Average Moving Speed: **{avg_moving_c_speed} km/h**
     
-    Moving Time: {moving_time}
+    Moving Time: **{moving_time}**
 '''.format(c_dist_geo2d=df['c_dist_geo2d'].iloc[-1] / 1000,
            c_dist_geo3d=df['c_dist_geo3d'].iloc[-1] / 1000,
            delta_c_dist_sph=df['c_dist_geo3d'].iloc[-1] - df['c_dist_geo2d'].iloc[-1],
@@ -478,6 +478,7 @@ def plot_map2(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 
 
                                    ),
                        margin={'l': 10, 'b': 10, 't': 10, 'r': 10},
+                       height=600,
                        )
     return go.Figure(data=data, layout=layout)
 
@@ -520,9 +521,10 @@ def plot_elevation(df, hover_index=None):
     fig.add_annotation(x=0.02, y=0.85, xanchor='left', yanchor='bottom',
                        xref='paper', yref='paper', showarrow=False, align='left',
                        text="Elevation")
-    fig.update_layout(height=225,
-                      margin={'l': 0, 'b': 0, 'r': 0, 't': 0},
-                      hovermode='x')
+    fig.update_layout(height=400,
+                      margin={'l': 10, 'b': 10, 'r': 10, 't': 10},
+                      hovermode='x',
+                      selectdirection='h')
 
     return fig
 
@@ -642,7 +644,7 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
             )
         )
 
-    fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},
+    fig.update_layout(margin={"r": 20, "t": 20, "l": 20, "b": 20},
                       hovermode='x')
     return fig
 
@@ -808,7 +810,13 @@ def estimate_power(df,
                        xref='paper', yref='paper', showarrow=False, align='left',
                        text="Average power: {:.0f} W".format(np.mean(df_selection['c_power'])))
 
-    fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},
+    fig.update_layout(legend=dict(orientation="h",
+                                  yanchor="bottom",
+                                  y=1.02,
+                                  xanchor="left",
+                                  x=0,
+                                  ),
+                      margin={"r": 20, "t": 20, "l": 20, "b": 20},
                       hovermode='x')
     return fig
 
