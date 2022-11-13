@@ -173,7 +173,8 @@ def load(files, debug_plots=False, debug=False, csv=False):
             fig_2.show()
 
         # first create lists to store the results, these will be appended ot the dataframe at the end
-        # Note: i'll be working from the gps_points object directly and then appending results into the dataframe. It would make a lot more sense to operate directly on the dataframe.
+        # Note: i'll be working from the gps_points object directly and then appending results into the dataframe. It
+        # would make a lot more sense to operate directly on the dataframe.
 
         c_delta_elev = [0]  # change in elevation between records
         c_delta_time = [0]  # time interval between records
@@ -458,29 +459,54 @@ def plot_map2(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 
                                 interval_unit=interval_unit,
                                 interval=interval)
 
-    data = [go.Scattermapbox(lat=df_selection["lat"],
+    # Option to use plotly's go module or px module
+    use_go = False
+    if use_go:
+        data = [
+            go.Scatter(x=df_selection["lon"],
+                       y=df_selection["lat"],
+                       ),
+            go.Scattermapbox(lat=df_selection["lat"],
                              lon=df_selection["lon"],
                              mode='lines+markers',
+                             line=dict(
+                                 width=2,
+                                 color="gray",
+                             ),
                              marker=go.scattermapbox.Marker(size=6,
                                                             color=df_selection[map_trace_color_param],
                                                             colorscale=px.colors.sequential.Bluered),
                              hovertext=df_selection['c_dist_geo2d'],
-                             )]
-    layout = go.Layout(autosize=False,
-                       hovermode='closest',
-                       mapbox=dict(style="open-street-map",
-                                   # accesstoken=map_token,
-                                   bearing=0,
-                                   pitch=0,
-                                   zoom=10,
-                                   center=go.layout.mapbox.Center(lat=np.mean(df_selection["lat"]),
-                                                                  lon=np.mean(df_selection["lon"])),
+                             subplot='mapbox2',
+                             name='',
+                             showlegend=False,
+                             ),
+        ]
+        layout = go.Layout(hovermode='closest',
+                           mapbox2=dict(style="open-street-map",
+                                        # accesstoken=map_token,
+                                        domain={'x': [0.66, 0.99], 'y': [0.01, 0.33]},
+                                        bearing=0,
+                                        pitch=0,
+                                        zoom=10,
+                                        center=go.layout.mapbox.Center(lat=np.mean(df_selection["lat"]),
+                                                                       lon=np.mean(df_selection["lon"])),
 
-                                   ),
-                       margin={'l': 10, 'b': 10, 't': 10, 'r': 10},
-                       height=600,
-                       )
-    return go.Figure(data=data, layout=layout)
+                                        ),
+                           margin={'l': 10, 'b': 10, 't': 10, 'r': 10},
+                           height=600,
+                           )
+        fig = go.Figure(data=data, layout=layout)
+    else:
+        fig = px.scatter_mapbox(df_selection,
+                                lat="lat",
+                                lon="lon",
+                                )
+        fig.update_layout(mapbox_style="open-street-map",
+                          margin={'l': 10, 'b': 10, 't': 10, 'r': 10},
+                          )
+
+    return fig
 
 
 def plot_elevation(df, hover_index=None):
@@ -616,7 +642,6 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
         fig.add_trace(go.Scattermapbox(lat=df_climb["lat"],
                                        lon=df_climb["lon"],
                                        mode='lines+markers',
-                                       hovertext=df_climb["c_dist_geo2d_neg"],
                                        line=dict(
                                            width=2,
                                            color="gray",
@@ -624,6 +649,7 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
                                        marker=go.scattermapbox.Marker(size=6,
                                                                       color=df_climb["elev"],
                                                                       colorscale=px.colors.sequential.Bluered),
+                                       hovertext=df_climb["c_dist_geo2d_neg"],
                                        subplot='mapbox2',
                                        name='',
                                        showlegend=False
@@ -635,12 +661,12 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
                 style="open-street-map",
                 domain={'x': [0.66, 0.99], 'y': [0.01, 0.33]},
                 bearing=0,
+                pitch=0,
+                zoom=11,
                 center=go.layout.mapbox.Center(
                     lat=np.mean(df_climb["lat"]),
                     lon=np.mean(df_climb["lon"])
                 ),
-                pitch=0,
-                zoom=11
             )
         )
 

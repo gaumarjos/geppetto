@@ -8,19 +8,12 @@ import geppetto
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 TRACK_DIRECTORY = "tracks/"
 
-colors = {
-    'background': '#222222',
-    'text': '#7FDBFF',
-    'stats': 'eeeeee',
-}
-
 app = Dash(__name__,
            title='Geppetto',
            external_stylesheets=[dbc.themes.FLATLY]
            )
 
 app.layout = html.Div(
-    # style={'backgroundColor': colors['background']},
     children=
     [
         # Where the dataset is stored
