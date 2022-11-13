@@ -51,7 +51,8 @@ app.layout = html.Div([
                                       {'label': 'Distance', 'value': 'c_dist_geo2d'}],
                                      'elev',
                                      id='map_trace_color'),
-                        dcc.Graph(id='map_graph'),
+                        dcc.Graph(id='map_graph',
+                                  animate=False),
                         dcc.Graph(id='elevation_graph'),
                         dcc.Markdown(children='''Stats go here''', id='markdown_stats')
                     ],
@@ -146,22 +147,6 @@ def load_trace(filename):
 
 
 @app.callback(
-    Output('elevation_graph', 'figure'),
-    Input('store_df', 'data'),
-    Input('map_graph', 'hoverData'))
-def update_elevation_graph(jsonified_df, hoverData):
-    df = pd.read_json(jsonified_df, orient='split')
-    hover_index = None
-    if hoverData is not None:
-        hover_index = hoverData['points'][0]['pointIndex']
-
-    fig = geppetto.plot_elevation(df=df,
-                                  hover_index=hover_index)
-
-    return fig
-
-
-@app.callback(
     Output('map_graph', 'figure'),
     Input('store_df', 'data'),
     Input('elevation_graph', 'selectedData'),
@@ -171,17 +156,33 @@ def update_map(jsonified_df, selected_points, map_trace_color):
     df = pd.read_json(jsonified_df, orient='split')
     if selected_points is not None:
         selected_indexes = [d['pointIndex'] for d in selected_points['points']]
-        fig = geppetto.plot_map(df=df,
-                                map_trace_color_param=map_trace_color,
-                                interval_unit="i",
-                                interval=[min(selected_indexes), max(selected_indexes)] if len(
-                                    selected_indexes) > 0 else [
-                                    0, 0])
+        fig = geppetto.plot_map2(df=df,
+                                 map_trace_color_param=map_trace_color,
+                                 interval_unit="i",
+                                 interval=[min(selected_indexes), max(selected_indexes)] if len(
+                                     selected_indexes) > 0 else [0, 0])
     else:
-        fig = geppetto.plot_map(df=df,
-                                map_trace_color_param=map_trace_color,
-                                interval_unit="i",
-                                interval=[0, 0])
+        fig = geppetto.plot_map2(df=df,
+                                 map_trace_color_param=map_trace_color,
+                                 interval_unit="i",
+                                 interval=[0, 0])
+
+    return fig
+
+
+@app.callback(
+    Output('elevation_graph', 'figure'),
+    Input('store_df', 'data'),
+    #Input('map_graph', 'hoverData')
+)
+def update_elevation_graph(jsonified_df):#, hoverData):
+    df = pd.read_json(jsonified_df, orient='split')
+    hover_index = None
+    # if hoverData is not None:
+    #     hover_index = hoverData['points'][0]['pointIndex']
+
+    fig = geppetto.plot_elevation(df=df,
+                                  hover_index=hover_index)
 
     return fig
 

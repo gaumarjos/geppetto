@@ -426,14 +426,12 @@ def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0
     """
 
     :param df: dataframe to operate on
-    :param map_trace_color_param:
-    :param interval_unit:
-    :param interval:
+    :param map_trace_color_param: parameter to control the trace color
+    :param interval_unit: 'm'=meters or 'i'=index
+    :param interval: the interval of interest
     :return:
     """
-
     assert map_trace_color_param in ('elev', 'c_dist_geo2d', 'c_speed')
-
     df_selection = copy_segment(df,
                                 columns=["lon", "lat", "c_dist_geo2d", "elev", 'c_speed'],
                                 interval_unit=interval_unit,
@@ -463,9 +461,47 @@ def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0
             zoom=11
         )
     )
-
     fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
     return fig
+
+
+def plot_map2(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0)):
+    """
+
+    :param df: dataframe to operate on
+    :param map_trace_color_param: parameter to control the trace color
+    :param interval_unit: 'm'=meters or 'i'=index
+    :param interval: the interval of interest
+    :return:
+    """
+    assert map_trace_color_param in ('elev', 'c_dist_geo2d', 'c_speed')
+    df_selection = copy_segment(df,
+                                columns=["lon", "lat", "c_dist_geo2d", "elev", 'c_speed'],
+                                interval_unit=interval_unit,
+                                interval=interval)
+
+    data = [go.Scattermapbox(lat=df_selection["lat"],
+                             lon=df_selection["lon"],
+                             mode='lines+markers',
+                             marker=go.scattermapbox.Marker(size=6,
+                                                            color=df_selection[map_trace_color_param],
+                                                            colorscale=px.colors.sequential.Bluered),
+                             hovertext=df_selection['c_dist_geo2d'],
+                             )]
+    layout = go.Layout(autosize=False,
+                       hovermode='closest',
+                       mapbox=dict(style="open-street-map",
+                                   # accesstoken=map_token,
+                                   bearing=0,
+                                   pitch=0,
+                                   zoom=10,
+                                   center=go.layout.mapbox.Center(lat=np.mean(df_selection["lat"]),
+                                                                  lon=np.mean(df_selection["lon"])),
+
+                                   ),
+                       margin={'l': 10, 'b': 10, 't': 10, 'r': 10},
+                       )
+    return go.Figure(data=data, layout=layout)
 
 
 def plot_elevation(df, hover_index=None):

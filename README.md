@@ -22,10 +22,13 @@ Developed with Python 10.0.0. Install required modules with:
 
 ## Known bugs
 
-* The app interface looks very bad
-* For some unknown reason, the map plot doesn't update when a new file is loaded or a portion of it is selected from the
-  elevation plot. It looks like the trace is cached somewhere. It's the only plot that doesn't react to updates. This
+1. The app interface looks very bad
+2. For some unknown reason, the map plot doesn't update when a new file is loaded or a portion of it is selected from the
+  elevation plot. It looks like the trace is cached somewhere. It's the only plot that doesn't react to updates. Posted 
+  here https://github.com/plotly/dash/issues/1152. This
   makes no sense because
     * its center updates correctly
+    * datapoints are updated correctly ![](docs/map_update_bug.png)
     * if replaced with a scatter, it updates correctly
     * the other minimap in the gradient plot updates as expected
+   Posted in https://github.com/plotly/dash/issues/1152
