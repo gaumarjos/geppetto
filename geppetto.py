@@ -13,6 +13,15 @@ import os
 import fitdecode
 
 
+def read_mapbox_token(file="mapbox_token.txt"):
+    with open(file) as f:
+        lines = f.readlines()
+        return lines[0]
+
+
+mapbox_token = read_mapbox_token()
+
+
 def load(files, debug_plots=False, debug=False, csv=False):
     """
     The object can load multiple gpx files at once. Useful when we want to plot multiple traces on the same map. The
@@ -460,7 +469,7 @@ def plot_map2(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 
                                 interval=interval)
 
     # Option to use plotly's go module or px module
-    use_go = False
+    use_go = True
     if use_go:
         data = [
             go.Scatter(x=df_selection["lon"],
@@ -484,7 +493,7 @@ def plot_map2(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 
         ]
         layout = go.Layout(hovermode='closest',
                            mapbox2=dict(style="open-street-map",
-                                        # accesstoken=map_token,
+                                        accesstoken=mapbox_token,
                                         domain={'x': [0.66, 0.99], 'y': [0.01, 0.33]},
                                         bearing=0,
                                         pitch=0,
@@ -900,7 +909,7 @@ def main():
     :return: nothing
     """
 
-    if 1:
+    if 0:
         df_list, df_moving_list, file_list = load(["tracks/The_missing_pass_W3_D2_.gpx",
                                                    "tracks/Local_passes_gravel_edition_.gpx",
                                                    "tracks/Two_more_W20_D3_.gpx",
@@ -924,6 +933,8 @@ def main():
         plot_elevation(df).show()
         gradient(df, interval=[33739, 48124], resolution=500).show()
         estimate_power(df, interval=[0, 0]).show()
+
+    read_mapbox_token()
 
 
 if __name__ == "__main__":
