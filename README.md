@@ -24,29 +24,26 @@ Although unnecessary, a Mapbox token can be added in this file:
   with the Dash app
 * `tracks/` is where all the `.gpx` and `.fit` files are
 
-## Known bugs
+## To do and known bugs
 
-1. The app interface looks very bad
-2. For some unknown reason, the map plot doesn't update when a new file is loaded or a portion of it is selected from the
-  elevation plot. It looks like the trace is cached somewhere. It's the only plot that doesn't react to updates. Posted 
-  here https://github.com/plotly/dash/issues/1152. This
-  makes no sense because
-    * its center updates correctly
-    * datapoints are updated correctly ![](docs/map_update_bug.png)
-    * if replaced with a scatter, it updates correctly
-    * the other minimap in the gradient plot updates as expected
-   Posted in https://github.com/plotly/dash/issues/1152
+| Status     | Item                                                           |
+|:----------:|----------------------------------------------------------------|
+| WIP        | The app interface looks very bad |
+| Workaround | Tap plot doesn't update when a new file is loaded or a portion of it is selected from the elevation plot. Posted here https://github.com/plotly/dash/issues/1152. It has been solved with this workaround https://github.com/plotly/plotly.js/issues/6363. |
 
 ## Documentation
 
 ### Importing
+
 * https://towardsdatascience.com/parsing-fitness-tracker-data-with-python-a59e7dc17418
 
 ### Maths
+
 * https://thatmaceguy.github.io/python/gps-data-analysis-intro/
 * https://rkurchin.github.io/posts/2020/05/ftp
 
 ### Plotly
+
 * https://plotly.com/python/mapbox-layers/
 * https://plotly.com/python/builtin-colorscales/
 * https://github.com/plotly/plotly.py/issues/1728
@@ -54,7 +51,9 @@ Although unnecessary, a Mapbox token can be added in this file:
 * https://plotly.com/python/mapbox-layers/#using-layoutmapboxlayers-to-specify-a-base-map
 
 ### Dash
+
 * https://dash.plotly.com/interactive-graphing
 * https://dash.plotly.com/sharing-data-between-callbacks
 * https://dash-bootstrap-components.opensource.faculty.ai/docs/components/layout/
 * https://getbootstrap.com/docs/5.1/layout/gutters/
+* https://www.dash-mantine-components.com/components/checkbox

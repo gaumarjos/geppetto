@@ -14,9 +14,12 @@ import fitdecode
 
 
 def read_mapbox_token(file="mapbox_token.txt"):
-    with open(file) as f:
-        lines = f.readlines()
-        return lines[0]
+    try:
+        with open(file) as f:
+            lines = f.readlines()
+            return lines[0]
+    except:
+        return ""
 
 
 mapbox_token = read_mapbox_token()
@@ -323,7 +326,7 @@ def stats(df, df_moving):
     
     Average Speed: **{avg_c_speed:.1f} km/h**
     
-    Average Moving Speed: **{avg_moving_c_speed} km/h**
+    Average Moving Speed: **{avg_moving_c_speed:.1f} km/h**
     
     Moving Time: **{moving_time}**
 '''.format(c_dist_geo2d=df['c_dist_geo2d'].iloc[-1] / 1000,
@@ -467,53 +470,55 @@ def plot_map2(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 
                                 columns=["lon", "lat", "c_dist_geo2d", "elev", 'c_speed'],
                                 interval_unit=interval_unit,
                                 interval=interval)
+    df_not_selection = df[~df.index.isin(df_selection.index)]
 
-    # Option to use plotly's go module or px module
-    use_go = True
-    if use_go:
-        data = [
-            go.Scatter(x=df_selection["lon"],
-                       y=df_selection["lat"],
-                       ),
-            go.Scattermapbox(lat=df_selection["lat"],
-                             lon=df_selection["lon"],
-                             mode='lines+markers',
-                             line=dict(
-                                 width=2,
-                                 color="gray",
-                             ),
-                             marker=go.scattermapbox.Marker(size=6,
-                                                            color=df_selection[map_trace_color_param],
-                                                            colorscale=px.colors.sequential.Bluered),
-                             hovertext=df_selection['c_dist_geo2d'],
-                             subplot='mapbox2',
-                             name='',
-                             showlegend=False,
-                             ),
-        ]
-        layout = go.Layout(hovermode='closest',
-                           mapbox2=dict(style="open-street-map",
-                                        accesstoken=mapbox_token,
-                                        domain={'x': [0.66, 0.99], 'y': [0.01, 0.33]},
-                                        bearing=0,
-                                        pitch=0,
-                                        zoom=10,
-                                        center=go.layout.mapbox.Center(lat=np.mean(df_selection["lat"]),
-                                                                       lon=np.mean(df_selection["lon"])),
+    print(len(df))
+    print(len(df_selection))
+    print(len(df_not_selection))
+    print(len(df_not_selection) + len(df_selection))
 
-                                        ),
-                           margin={'l': 10, 'b': 10, 't': 10, 'r': 10},
-                           height=600,
-                           )
-        fig = go.Figure(data=data, layout=layout)
-    else:
-        fig = px.scatter_mapbox(df_selection,
-                                lat="lat",
-                                lon="lon",
-                                )
-        fig.update_layout(mapbox_style="open-street-map",
-                          margin={'l': 10, 'b': 10, 't': 10, 'r': 10},
-                          )
+    data = [
+        go.Scattermapbox(lat=df_selection["lat"],
+                         lon=df_selection["lon"],
+                         mode='lines+markers',
+                         line=dict(
+                             width=2,
+                             color="gray",
+                         ),
+                         marker=go.scattermapbox.Marker(size=6,
+                                                        color=df_selection[map_trace_color_param],
+                                                        colorscale=px.colors.sequential.Bluered),
+                         hovertext=df_selection['c_dist_geo2d'],
+                         subplot='mapbox2',
+                         name='',
+                         showlegend=False,
+                         ),
+        go.Scattermapbox(lat=df_not_selection["lat"],
+                         lon=df_not_selection["lon"],
+                         mode='markers',
+                         marker=go.scattermapbox.Marker(size=6,
+                                                        color='gray'),
+                         hovertext=df_selection['c_dist_geo2d'],
+                         subplot='mapbox2',
+                         name='',
+                         showlegend=False,
+                         ),
+    ]
+    layout = go.Layout(hovermode='closest',
+                       mapbox2=dict(style="open-street-map",
+                                    accesstoken=mapbox_token,
+                                    # domain={'x': [0.66, 0.99], 'y': [0.01, 0.33]},
+                                    bearing=0,
+                                    pitch=0,
+                                    zoom=10,
+                                    center=go.layout.mapbox.Center(lat=np.mean(df_selection["lat"]),
+                                                                   lon=np.mean(df_selection["lon"])),
+
+                                    ),
+                       margin={'l': 10, 'b': 10, 't': 10, 'r': 10},
+                       height=600,
+                       )
+    fig = go.Figure(data=data, layout=layout)
 
     return fig
 

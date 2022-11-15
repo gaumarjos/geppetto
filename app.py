@@ -1,5 +1,6 @@
 from dash import Dash, html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
 import pandas as pd
 import os
 
@@ -10,7 +11,8 @@ TRACK_DIRECTORY = "tracks/"
 
 app = Dash(__name__,
            title='Geppetto',
-           external_stylesheets=[dbc.themes.FLATLY]
+           external_stylesheets=[dbc.themes.FLATLY],
+           eager_loading=True,
            )
 
 app.layout = html.Div(
@@ -79,6 +81,7 @@ app.layout = html.Div(
                             'elev',
                             style={},
                             id='map_trace_color'),
+                        dcc.Store(id='map_store'),  # Used by plotly bug workaround
                         dcc.Graph(id='map_graph',
                                   style={},
                                   animate=False,
@@ -211,6 +214,12 @@ app.layout = html.Div(
                                 dcc.Dropdown(['100', '200', '500', '1000'],
                                              '500',
                                              id='gradient_resolution'),
+                                dmc.Checkbox(
+                                    id="minimap_checkbox",
+                                    label="Show map",
+                                    radius="xl",
+                                    checked=False,
+                                ),
                             ]
                         ),
                         dbc.Row(
@@ -287,7 +296,8 @@ def load_trace(filename):
 
 
 @app.callback(
-    Output('map_graph', 'figure'),
+    # Output('map_graph', 'figure'),  # Replaced by the next line
+    Output('map_store', 'data'),  # Used by plotly bug workaround
     Input('store_df', 'data'),
     Input('elevation_graph', 'selectedData'),
     Input('map_trace_color', 'value')
@@ -309,6 +319,25 @@ def update_map(jsonified_df, selected_points, map_trace_color):
                                      interval=[0, 0])
 
         return fig
+
+
+# Used by plotly bug workaround: change the id in the state and output to change the id of your plot
+app.clientside_callback(
+    '''
+    function (figure, graph_id) {
+        if(figure === undefined) {
+            return {'data': [], 'layout': {}};
+        }
+        var graphDiv = document.getElementById(graph_id);
+        var data = figure.data;
+        var layout = figure.layout;        
+        Plotly.newPlot(graphDiv, data, layout);
+    }
+    ''',
+    Output('map_graph', 'figure'),
+    Input('map_store', 'data'),
+    State('map_graph', 'id')
+)
 
 
 @app.callback(
@@ -334,8 +363,9 @@ def update_elevation_graph(jsonified_df):  # , hoverData):
     Input('store_df', 'data'),
     Input('elevation_graph', 'selectedData'),
     Input('gradient_resolution', 'value'),
+    Input('minimap_checkbox', 'checked'),
 )
-def update_gradient(jsonified_df, selected_points, gradient_resolution):
+def update_gradient(jsonified_df, selected_points, gradient_resolution, minimap_checkbox):
     if jsonified_df is not None:
         df = pd.read_json(jsonified_df, orient='split')
         if selected_points is not None:
@@ -345,7 +375,7 @@ def update_gradient(jsonified_df, selected_points, gradient_resolution):
                                     interval=[min(selected_indexes), max(selected_indexes)] if len(
                                         selected_indexes) > 0 else [0, 0],
                                     resolution=int(gradient_resolution),
-                                    show_map=True)
+                                    show_map=minimap_checkbox)
         else:
             fig = geppetto.gradient(df=df,
                                     interval_unit="i",
