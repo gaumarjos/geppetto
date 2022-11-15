@@ -50,6 +50,7 @@ app.layout = html.Div(
                             os.listdir(TRACK_DIRECTORY)[0],
                             id='imported_files',
                             searchable=True,
+                            clearable=False,
                             style={"margin-left": "40px",
                                    "margin-right": "40px",
                                    }
@@ -80,6 +81,7 @@ app.layout = html.Div(
                             ],
                             'elev',
                             style={},
+                            clearable=False,
                             id='map_trace_color'),
                         dcc.Store(id='map_store'),  # Used by plotly bug workaround
                         dcc.Graph(id='map_graph',
@@ -213,6 +215,7 @@ app.layout = html.Div(
                                 html.Div("Step (m)"),
                                 dcc.Dropdown(['100', '200', '500', '1000'],
                                              '500',
+                                             clearable=False,
                                              id='gradient_resolution'),
                                 dmc.Checkbox(
                                     id="minimap_checkbox",
@@ -374,7 +377,7 @@ def update_gradient(jsonified_df, selected_points, gradient_resolution, minimap_
                                     interval_unit="i",
                                     interval=[min(selected_indexes), max(selected_indexes)] if len(
                                         selected_indexes) > 0 else [0, 0],
-                                    resolution=int(gradient_resolution),
+                                    resolution=int(gradient_resolution) if gradient_resolution is not None else 1000,
                                     show_map=minimap_checkbox)
         else:
             fig = geppetto.gradient(df=df,

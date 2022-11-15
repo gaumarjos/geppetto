@@ -29,6 +29,7 @@ Although unnecessary, a Mapbox token can be added in this file:
 | Status     | Item                                                           |
 |:----------:|----------------------------------------------------------------|
 | WIP        | The app interface looks very bad |
+| TODO       | Weird overlap of values on the left of "more and more local passes" trace. Uncommenting the steps line in geppetto causes the gradient function to crash. |
 | Workaround | Tap plot doesn't update when a new file is loaded or a portion of it is selected from the elevation plot. Posted here https://github.com/plotly/dash/issues/1152. It has been solved with this workaround https://github.com/plotly/plotly.js/issues/6363. |
 
 ## Documentation

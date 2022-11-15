@@ -465,12 +465,16 @@ def plot_map2(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 
     :param interval: the interval of interest
     :return:
     """
-    assert map_trace_color_param in ('elev', 'c_dist_geo2d', 'c_speed')
+
     df_selection = copy_segment(df,
                                 columns=["lon", "lat", "c_dist_geo2d", "elev", 'c_speed'],
                                 interval_unit=interval_unit,
                                 interval=interval)
     df_not_selection = df[~df.index.isin(df_selection.index)]
+
+    # Check that the desired highlight field exists
+    if map_trace_color_param not in df_selection.columns:
+        map_trace_color_param = 'elev'
 
     print(len(df))
     print(len(df_selection))
@@ -627,7 +631,7 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
     df_climb_gradient['c_gradient'] = df_climb_gradient['c_elev_delta'] / df_climb_gradient['c_dist_delta'] * 100
 
     # This columns is redundant but is useful to cross check that the filter worked well
-    df_climb_gradient['steps'] = np.flip(steps)
+    # df_climb_gradient['steps'] = np.flip(steps)
 
     # Generate figure
     fig = go.Figure()
