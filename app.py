@@ -269,7 +269,49 @@ app.layout = html.Div(
                     [
                         dbc.Row(
                             [
-                                dcc.Graph(id='speed_cadence_graph')
+                                dcc.Graph(id='speed_cadence_timeseries_graph')
+                            ]
+                        ),
+                    ],
+                    width=10,
+                ),
+
+                # Spacer dx
+                dbc.Col(
+                    [
+                    ],
+                    width=1
+                ),
+            ]
+        ),
+
+        # Spacer
+        dbc.Row(
+            [
+                html.Div(
+                    style={
+                        "height": "60px"
+                    },
+                    id='spacer4'
+                )
+            ]
+        ),
+
+        # Speed vs cadence
+        dbc.Row(
+            [
+                # Spacer sx
+                dbc.Col(
+                    [
+                    ],
+                    width=1
+                ),
+                # Gradient
+                dbc.Col(
+                    [
+                        dbc.Row(
+                            [
+                                dcc.Graph(id='speed_cadence_curve_graph')
                             ]
                         ),
                     ],
@@ -456,27 +498,53 @@ def update_power(jsonified_df, selected_points, power_filter_slider):
 
 
 @app.callback(
-    Output('speed_cadence_graph', 'figure'),
+    Output('speed_cadence_timeseries_graph', 'figure'),
     Input('store_df', 'data'),
     Input('store_df_moving', 'data'),
     Input('elevation_graph', 'selectedData'),
 )
-def update_speed_cadence(jsonified_df, jsonified_df_moving, selected_points):
+def update_speed_cadence_timeseries(jsonified_df, jsonified_df_moving, selected_points):
     if jsonified_df is not None:
         df = pd.read_json(jsonified_df, orient='split')
         df_moving = pd.read_json(jsonified_df_moving, orient='split')
         if selected_points is not None:
             selected_indexes = [d['pointIndex'] for d in selected_points['points']]
-            fig = geppetto.speed_cadence_plot(df=df,
-                                              df_moving=df_moving,
-                                              interval_unit="i",
-                                              interval=[min(selected_indexes), max(selected_indexes)] if len(
-                                                  selected_indexes) > 0 else [0, 0])
+            fig = geppetto.speed_cadence_timeseries(df=df,
+                                                    df_moving=df_moving,
+                                                    interval_unit="i",
+                                                    interval=[min(selected_indexes), max(selected_indexes)] if len(
+                                                        selected_indexes) > 0 else [0, 0])
         else:
-            fig = geppetto.speed_cadence_plot(df=df,
-                                              df_moving=df_moving,
-                                              interval_unit="i",
-                                              interval=[0, 0])
+            fig = geppetto.speed_cadence_timeseries(df=df,
+                                                    df_moving=df_moving,
+                                                    interval_unit="i",
+                                                    interval=[0, 0])
+
+        return fig
+
+
+@app.callback(
+    Output('speed_cadence_curve_graph', 'figure'),
+    Input('store_df', 'data'),
+    Input('store_df_moving', 'data'),
+    Input('elevation_graph', 'selectedData'),
+)
+def update_speed_cadence_curve(jsonified_df, jsonified_df_moving, selected_points):
+    if jsonified_df is not None:
+        df = pd.read_json(jsonified_df, orient='split')
+        df_moving = pd.read_json(jsonified_df_moving, orient='split')
+        if selected_points is not None:
+            selected_indexes = [d['pointIndex'] for d in selected_points['points']]
+            fig = geppetto.cadence_speed_curve(df=df,
+                                               df_moving=df_moving,
+                                               interval_unit="i",
+                                               interval=[min(selected_indexes), max(selected_indexes)] if len(
+                                                   selected_indexes) > 0 else [0, 0])
+        else:
+            fig = geppetto.cadence_speed_curve(df=df,
+                                               df_moving=df_moving,
+                                               interval_unit="i",
+                                               interval=[0, 0])
 
         return fig
 
