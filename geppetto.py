@@ -476,11 +476,6 @@ def plot_map2(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 
     if map_trace_color_param not in df_selection.columns:
         map_trace_color_param = 'elev'
 
-    print(len(df))
-    print(len(df_selection))
-    print(len(df_not_selection))
-    print(len(df_not_selection) + len(df_selection))
-
     data = [
         go.Scattermapbox(lat=df_selection["lat"],
                          lon=df_selection["lon"],
@@ -865,6 +860,92 @@ def estimate_power(df,
     return fig
 
 
+def speed_cadence_plot(df, df_moving, interval_unit="m", interval=(0, 0)):
+    """
+    Shows speed and cadence (if available)
+    :param df: dataframe to operate on
+    :param df_moving:
+    :param interval_unit: can be "m" for meters or "i" for index
+    :param interval: the gradient is calculated over the portion [start_meter, end_meter] of the input trace
+    :return: a figure
+    """
+
+    # Create a local copy of the input array of dataframes containing only the points belonging to the portion,
+    # usually a climb, of interest
+    df_selection = copy_segment(df,
+                                columns=["lon", "lat", "c_dist_geo2d", "c_speed", "cad", "c_delta_time"],
+                                interval_unit=interval_unit,
+                                interval=interval)
+    df_moving_selection = copy_segment(df_moving,
+                                       columns=["c_delta_time", "c_speed"],
+                                       interval_unit=interval_unit,
+                                       interval=interval)
+
+    # Calculate average cadence removing 0 cadence points
+    df_selection_0cadence = df_selection[df_selection['cad'] > 0.0]
+
+    # Generate figure
+    fig = make_subplots(rows=1, cols=1, shared_xaxes=True, specs=[[{"secondary_y": True}]])
+    fig.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
+                             y=df_selection["c_speed"],
+                             name="Speed",
+                             mode='markers',
+                             line=dict(
+                                 width=1,
+                                 color="red"),
+                             marker=dict(
+                                 size=1,
+                                 color="red")
+                             ),
+                  secondary_y=False,
+                  )
+
+    # Plot cadence only if it's not all nan
+    if len(df_selection["cad"]) > df_selection["cad"].isna().sum():
+        fig.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
+                                 y=df_selection["cad"],
+                                 name="Cadence",
+                                 mode='markers',
+                                 line=dict(
+                                     width=1,
+                                     color="blue"),
+                                 marker=dict(
+                                     size=1,
+                                     color="blue")
+                                 ),
+                      secondary_y=True,
+                      )
+
+    fig.update_yaxes(showspikes=True, secondary_y=True)
+    fig.update_yaxes(showspikes=True, secondary_y=True)
+    fig.update_xaxes(showspikes=True)
+
+    annotation_text = """
+    Average speed: {:.1f} km/h
+    Average moving speed: {:.1f} km/h
+    Average cadence: {:.0f} rpm
+    Average pedaling cadence: {:.0f} rpm 
+    """.format(round((3.6 * sum((df_selection['c_speed'] * df_selection['c_delta_time'])) / sum(df_selection['c_delta_time'])), 2),
+               round((3.6 * sum((df_moving_selection['c_speed'] * df_moving_selection['c_delta_time'])) / sum(df_moving_selection['c_delta_time'])), 2),
+               np.mean(df_selection['cad']),
+               np.mean(df_selection_0cadence['cad']))
+
+    fig.add_annotation(x=0.02, y=0.85, xanchor='left', yanchor='bottom',
+                       xref='paper', yref='paper', showarrow=False, align='left',
+                       text=annotation_text)
+
+    fig.update_layout(legend=dict(orientation="h",
+                                  yanchor="bottom",
+                                  y=1.02,
+                                  xanchor="left",
+                                  x=0,
+                                  ),
+                      margin={"r": 20, "t": 20, "l": 20, "b": 20},
+                      hovermode='x')
+
+    return fig
+
+
 def cadence_speed_curve(df, interval=(0, 0)):
     """
     This method operates on only one trace
@@ -886,7 +967,7 @@ def cadence_speed_curve(df, interval=(0, 0)):
     # Plot
     fig_cadence = go.Figure()
     fig_cadence.add_trace(go.Scatter(x=df_selection["cad"],
-                                     y=df_selection["c_speed"],
+                                     y=df_selection["c_speed"]*3.6,
                                      mode='markers',
                                      name="Measured",
                                      marker=go.scatter.Marker(size=6,
@@ -895,7 +976,7 @@ def cadence_speed_curve(df, interval=(0, 0)):
                                      )
                           )
     for gear in gears:
-        speed = 2.0 * np.pi * (622.0 / 1000 / 2.0) * gear * (cadence / 60.0)  # mps
+        speed = 2.0 * np.pi * (622.0 / 1000 / 2.0) * gear * (cadence / 60.0) * 3.6  # km/h
         fig_cadence.add_trace(go.Scatter(x=cadence,
                                          y=speed,
                                          mode='lines',
@@ -906,10 +987,10 @@ def cadence_speed_curve(df, interval=(0, 0)):
                                          )
                               )
     fig_cadence.update_xaxes(range=[40, 120])
-    fig_cadence.update_yaxes(range=[0, 50. / 3.6])
+    fig_cadence.update_yaxes(range=[0, 60.])
     fig_cadence.update_layout(title="Cadence - Speed curve")
     fig_cadence.update_layout(margin={"r": 40, "t": 40, "l": 40, "b": 40})
-    fig_cadence.show()
+    return fig_cadence
 
 
 def main():
@@ -932,16 +1013,18 @@ def main():
                                                    ])
         plot_maps(df_list, file_list).show()
 
-    if 0:
-        df_list, df_moving_list, file_list = load(["tracks/The_missing_pass_W3_D2_.gpx"])
+    if 1:
+        df_list, df_moving_list, file_list = load(["tracks/The_local_4_or_5_passes.gpx"])
         df = df_list[0]
         df_moving = df_moving_list[0]
 
-        print(stats(df, df_moving))
-        plot_map(df).show()
-        plot_elevation(df).show()
-        gradient(df, interval=[33739, 48124], resolution=500).show()
-        estimate_power(df, interval=[0, 0]).show()
+        # print(stats(df, df_moving))
+        # plot_map(df).show()
+        # plot_elevation(df).show()
+        # gradient(df, interval=[33739, 48124], resolution=500).show()
+        # estimate_power(df, interval=[0, 0]).show()
+        # speed_cadence_plot(df, interval=[0, 0]).show()
+        cadence_speed_curve(df, interval=[0, 0]).show()
 
     read_mapbox_token()
 
