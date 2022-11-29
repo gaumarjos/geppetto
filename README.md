@@ -58,3 +58,7 @@ Although unnecessary, a Mapbox token can be added in this file:
 * https://dash-bootstrap-components.opensource.faculty.ai/docs/components/layout/
 * https://getbootstrap.com/docs/5.1/layout/gutters/
 * https://www.dash-mantine-components.com/components/checkbox
+* https://www.w3schools.com/colors/colors_names.asp
+* https://dash-bootstrap-components.opensource.faculty.ai/docs/components/card/
+* https://stackoverflow.com/questions/63592900/plotly-dash-how-to-design-the-layout-using-dash-bootstrap-components
+* https://github.com/facultyai/dash-bootstrap-components/issues/286
