@@ -8,6 +8,7 @@ import geppetto
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 TRACK_DIRECTORY = "tracks/"
+vspacer_h = "15px"
 
 app = Dash(__name__,
            title='Geppetto',
@@ -15,35 +16,18 @@ app = Dash(__name__,
            eager_loading=True,
            )
 
-app.layout = html.Div(
-    children=
+app.layout = dbc.Container(
     [
         # Where the dataset is stored
         dcc.Store(id='store_df'),
         dcc.Store(id='store_df_moving'),
 
-        # Title bar
+        # Main data
         dbc.Row(
             [
-                dbc.Col(
-                    [
-                        html.H1(
-                            children='GePpetto',
-                            style={
-                                'textAlign': 'center',
-                            }
-                        ),
-                    ],
-                    width=12,
-                )
-            ],
-            className="g-0",
-        ),
 
-        # File selection bar
-        dbc.Row(
-            [
-                dbc.Col(
+                # Top row: file selection bar
+                dbc.Row(
                     [
                         dcc.Dropdown(
                             os.listdir(TRACK_DIRECTORY),
@@ -51,282 +35,340 @@ app.layout = html.Div(
                             id='imported_files',
                             searchable=True,
                             clearable=False,
-                            style={"margin-left": "40px",
-                                   "margin-right": "40px",
-                                   }
+                            style={
+                                # "font-size": 16,
+                                "margin-top": "20px",
+                                "width": "100%",
+                            }
                         ),
-                    ],
-                    width=12,
-                )
-            ]
-        ),
-
-        # Map, elevation and stats
-        dbc.Row(
-            [
-                # Spacer sx
-                dbc.Col(
-                    [
-                    ],
-                    width=1
-                ),
-                # Map and elevation
-                dbc.Col(
-                    [
-                        dcc.Dropdown(
-                            [
-                                {'label': 'Elevation', 'value': 'elev'},
-                                {'label': 'Speed', 'value': 'c_speed'},
-                                {'label': 'Distance', 'value': 'c_dist_geo2d'}
-                            ],
-                            'elev',
-                            style={},
-                            clearable=False,
-                            id='map_trace_color'),
-                        dcc.Store(id='map_store'),  # Used by plotly bug workaround
-                        dcc.Graph(id='map_graph',
-                                  style={},
-                                  animate=False,
-                                  ),
-                    ],
-                    width=7,
-                ),
-                # Stats and spacer dx
-                dbc.Col(
-                    [
-                        dcc.Markdown(style={
-                            'textAlign': 'left',
-                        },
-                            id='markdown_stats'
-                        ),
-                    ],
-                    width=4
-                ),
-            ]
-        ),
-
-        # Elevation
-        dbc.Row(
-            [
-                # Spacer sx
-                dbc.Col(
-                    [
-                    ],
-                    width=1
+                    ]
                 ),
 
-                # Elevation
-                dbc.Col(
+                dbc.Row(
                     [
-                        dcc.Graph(id='elevation_graph',
-                                  style={},
-                                  ),
-                    ],
-                    width=10,
+                        html.Div(
+                            style={
+                                "height": vspacer_h
+                            },
+                            id='spacer0'
+                        )
+                    ]
                 ),
 
-                # Spacer dx
+                # Left column: map and stats on one row and elevation on another
                 dbc.Col(
                     [
-                    ],
-                    width=1
-                ),
-            ],
-        ),
 
-        # Spacer
-        dbc.Row(
-            [
-                html.Div(
-                    style={
-                        "height": "60px"
-                    },
-                    id='spacer1'
-                )
-            ]
-        ),
-
-        # Power
-        dbc.Row(
-            [
-                # Spacer sx
-                dbc.Col(
-                    [
-                    ],
-                    width=1
-                ),
-
-                # Power
-                dbc.Col(
-                    [
                         dbc.Row(
                             [
-                                html.Div("Filter"),
-                                dcc.Slider(0, 20, 2,
-                                           value=4,
-                                           id='power_filter_slider'
-                                           ),
-                            ]
-                        ),
-                        dbc.Row(
-                            [
-                                dcc.Graph(id='power_graph'),
-                            ]
-                        ),
-                    ],
-                    width=10,
-                ),
-
-                # Spacer dx
-                dbc.Col(
-                    [
-                    ],
-                    width=1
-                ),
-            ],
-        ),
-
-        # Spacer
-        dbc.Row(
-            [
-                html.Div(
-                    style={
-                        "height": "60px"
-                    },
-                    id='spacer2'
-                )
-            ]
-        ),
-
-        # Gradient
-        dbc.Row(
-            [
-                # Spacer sx
-                dbc.Col(
-                    [
-                    ],
-                    width=1
-                ),
-                # Gradient
-                dbc.Col(
-                    [
-                        dbc.Row(
-                            [
-                                html.Div("Step (m)"),
-                                dcc.Dropdown(['100', '200', '500', '1000'],
-                                             '500',
-                                             clearable=False,
-                                             id='gradient_resolution'),
-                                dmc.Checkbox(
-                                    id="minimap_checkbox",
-                                    label="Show map",
-                                    radius="xl",
-                                    checked=False,
+                                dbc.Col(
+                                    [
+                                        dbc.Card(
+                                            [
+                                                dbc.CardHeader("Map"),
+                                                dbc.CardBody(
+                                                    [
+                                                        html.Div(
+                                                            [
+                                                                html.Label(
+                                                                    "Highlight value",
+                                                                    style={
+                                                                        "display": "inline-block",
+                                                                        "width": "20%",
+                                                                        "justifycontent": "center",
+                                                                        # "height": "100%",
+                                                                    }),
+                                                                dcc.Dropdown(
+                                                                    [
+                                                                        {'label': 'Elevation', 'value': 'elev'},
+                                                                        {'label': 'Speed', 'value': 'c_speed'},
+                                                                        {'label': 'Distance', 'value': 'c_dist_geo2d'}
+                                                                    ],
+                                                                    'elev',
+                                                                    clearable=False,
+                                                                    id='map_trace_color',
+                                                                    style={
+                                                                        "display": "inline-block",
+                                                                        "width": "80%",
+                                                                        # "height": "100%",
+                                                                    }
+                                                                ),
+                                                            ]
+                                                        ),
+                                                        dcc.Store(id='map_store'),  # Used by plotly bug workaround
+                                                        dcc.Graph(id='map_graph',
+                                                                  animate=False
+                                                                  ),
+                                                    ]
+                                                )
+                                            ],
+                                            color="Snow",
+                                        ),
+                                    ],
+                                    width=8,
+                                ),
+                                dbc.Col(
+                                    [
+                                        dbc.Card(
+                                            [
+                                                dbc.CardHeader("Stats"),
+                                                dbc.CardBody(
+                                                    [
+                                                        dcc.Markdown(style={
+                                                            'textAlign': 'left',
+                                                        },
+                                                            id='markdown_stats'
+                                                        ),
+                                                    ]
+                                                )
+                                            ],
+                                            color="Snow",
+                                        ),
+                                    ],
+                                    width=4,
                                 ),
                             ]
                         ),
+
                         dbc.Row(
                             [
-                                dcc.Graph(id='gradient_graph')
+                                html.Div(
+                                    style={
+                                        "height": vspacer_h
+                                    },
+                                    id='spacer33'
+                                )
                             ]
                         ),
+
+                        dbc.Card(
+                            [
+                                dbc.CardHeader("Elevation and track selector"),
+                                dbc.CardBody(
+                                    [
+                                        dbc.Row(
+                                            [
+                                                dcc.Graph(id='elevation_graph'),
+                                            ]
+                                        ),
+                                    ]
+                                )
+                            ],
+                            color="Snow",
+                        )
                     ],
-                    width=10,
+                    width=6,
                 ),
 
-                # Spacer dx
+                # Right column, all other plots in different rows
                 dbc.Col(
                     [
-                    ],
-                    width=1
-                ),
-            ]
-        ),
+                        dbc.Card(
+                            [
+                                dbc.CardHeader("Gradient"),
+                                dbc.CardBody(
+                                    [
+                                        dbc.Row(
+                                            [
 
-        # Spacer
-        dbc.Row(
-            [
-                html.Div(
-                    style={
-                        "height": "60px"
-                    },
-                    id='spacer3'
-                )
-            ]
-        ),
+                                                dbc.Col(
+                                                    [
+                                                        dbc.Row(
+                                                            [
+                                                                html.Div("Step (m)"),
+                                                                dcc.Dropdown(['100', '200', '500', '1000'],
+                                                                             '500',
+                                                                             clearable=False,
+                                                                             id='gradient_resolution'),
+                                                                dmc.Checkbox(
+                                                                    id="minimap_checkbox",
+                                                                    label="Show map",
+                                                                    radius="xl",
+                                                                    checked=False,
+                                                                ),
+                                                            ]
+                                                        ),
+                                                    ],
+                                                    width=2
+                                                ),
 
-        # Speed and cadence
-        dbc.Row(
-            [
-                # Spacer sx
-                dbc.Col(
-                    [
-                    ],
-                    width=1
-                ),
-                # Gradient
-                dbc.Col(
-                    [
+                                                dbc.Col(
+                                                    [
+
+                                                        dcc.Graph(id='gradient_graph')
+                                                    ],
+                                                    width=10,
+                                                )
+                                            ]
+                                        ),
+
+                                    ]
+                                ),
+                            ],
+                            color="Snow"
+                        ),
+
                         dbc.Row(
                             [
-                                dcc.Graph(id='speed_cadence_timeseries_graph')
+                                html.Div(
+                                    style={
+                                        "height": vspacer_h
+                                    },
+                                    id='spacer3'
+                                )
                             ]
                         ),
-                    ],
-                    width=10,
-                ),
 
-                # Spacer dx
-                dbc.Col(
-                    [
-                    ],
-                    width=1
-                ),
-            ]
-        ),
-
-        # Spacer
-        dbc.Row(
-            [
-                html.Div(
-                    style={
-                        "height": "60px"
-                    },
-                    id='spacer4'
-                )
-            ]
-        ),
-
-        # Speed vs cadence
-        dbc.Row(
-            [
-                # Spacer sx
-                dbc.Col(
-                    [
-                    ],
-                    width=1
-                ),
-                # Gradient
-                dbc.Col(
-                    [
-                        dbc.Row(
+                        dbc.Card(
                             [
-                                dcc.Graph(id='speed_cadence_curve_graph')
-                            ]
-                        ),
-                    ],
-                    width=10,
-                ),
+                                dbc.CardHeader("Power"),
+                                dbc.CardBody(
 
-                # Spacer dx
-                dbc.Col(
-                    [
+                                    [
+
+                                        dbc.Row(
+                                            [
+                                                # Spacer sx
+                                                dbc.Col(
+                                                    [
+                                                        html.Div("Filter width"),
+                                                        dcc.Slider(0, 32, 2,
+                                                                   value=4,
+                                                                   id='power_filter_slider',
+                                                                   vertical=True,
+                                                                   marks={
+                                                                       1: {'label': '1'},
+                                                                       2: {'label': '2'},
+                                                                       4: {'label': '4'},
+                                                                       8: {'label': '8'},
+                                                                       16: {'label': '16'},
+                                                                       32: {'label': '32'}
+                                                                   }
+                                                                   ),
+                                                        # dcc.Input(
+                                                        #     id="power_filter_slider",
+                                                        #     type="number",
+                                                        #     required=True,
+                                                        #     value=4,
+                                                        #     min=0,
+                                                        #     max=128,
+                                                        # )
+                                                    ],
+                                                    width=1,
+                                                ),
+
+                                                # Power
+                                                dbc.Col(
+                                                    [
+                                                        dbc.Row(
+                                                            [
+
+                                                            ]
+                                                        ),
+                                                        dbc.Row(
+                                                            [
+                                                                dcc.Graph(id='power_graph'),
+                                                            ]
+                                                        ),
+                                                    ],
+                                                    width=11,
+                                                ),
+
+                                                # Spacer dx
+                                                dbc.Col(
+                                                    [
+                                                    ],
+                                                    width=1
+                                                ),
+                                            ],
+                                        ),
+
+                                    ],
+                                ),
+                            ],
+                            color="Snow",
+                        ),
+
+                        # dbc.Row(
+                        #     [
+                        #         html.Div(
+                        #             style={
+                        #                 "height": vspacer_h
+                        #             },
+                        #             id='spacer2'
+                        #         )
+                        #     ]
+                        #
+                        #
+                        # ),
+                        #
+                        # # Speed and cadence
+                        # dbc.Row(
+                        #     [
+                        #         dbc.Col(
+                        #             [
+                        #             ],
+                        #             width=2
+                        #         ),
+                        #         dbc.Col(
+                        #             [
+                        #                 dbc.Row(
+                        #                     [
+                        #                         dcc.Graph(id='speed_cadence_timeseries_graph')
+                        #                     ]
+                        #                 ),
+                        #             ],
+                        #             width=10,
+                        #         ),
+                        #     ]
+                        # ),
+
+                        # # Spacer
+                        # dbc.Row(
+                        #     [
+                        #         html.Div(
+                        #             style={
+                        #                 "height": vspacer_h
+                        #             },
+                        #             id='spacer4'
+                        #         )
+                        #     ]
+                        # ),
+                        #
+                        # # Speed vs cadence
+                        # dbc.Row(
+                        #     [
+                        #         # Spacer sx
+                        #         dbc.Col(
+                        #             [
+                        #             ],
+                        #             width=2
+                        #         ),
+                        #         # Gradient
+                        #         dbc.Col(
+                        #             [
+                        #                 dbc.Row(
+                        #                     [
+                        #                         dcc.Graph(id='speed_cadence_curve_graph')
+                        #                     ]
+                        #                 ),
+                        #             ],
+                        #             width=10,
+                        #         ),
+                        #     ]
+                        # ),
                     ],
-                    width=1
+                    width=6,
                 ),
-            ]
+            ],
+            className="h-100",
         ),
-    ]
+
+    ],
+    fluid=True,
+    style={"height": "100vh",
+           "width": "100hw",
+           "background-color": "SlateGray"},
 )
 
 
@@ -475,78 +517,89 @@ def update_gradient(jsonified_df, selected_points, gradient_resolution, minimap_
 @app.callback(
     Output('power_graph', 'figure'),
     Input('store_df', 'data'),
+    Input('store_df_moving', 'data'),
     Input('elevation_graph', 'selectedData'),
     Input('power_filter_slider', 'value'),
 )
-def update_power(jsonified_df, selected_points, power_filter_slider):
+def update_power(jsonified_df, jsonified_df_moving, selected_points, power_filter_slider):
     if jsonified_df is not None:
         df = pd.read_json(jsonified_df, orient='split')
+        df_moving = pd.read_json(jsonified_df_moving, orient='split')
         if selected_points is not None:
             selected_indexes = [d['pointIndex'] for d in selected_points['points']]
             fig = geppetto.estimate_power(df=df,
+                                          df_moving=df_moving,
                                           interval_unit="i",
                                           interval=[min(selected_indexes), max(selected_indexes)] if len(
                                               selected_indexes) > 0 else [0, 0],
-                                          filter_window=int(power_filter_slider))
+                                          filter_window=int(
+                                              power_filter_slider) if power_filter_slider is not None else 0)
         else:
             fig = geppetto.estimate_power(df=df,
+                                          df_moving=df_moving,
                                           interval_unit="i",
                                           interval=[0, 0],
-                                          filter_window=int(power_filter_slider))
+                                          filter_window=int(
+                                              power_filter_slider) if power_filter_slider is not None else 0)
 
         return fig
 
 
-@app.callback(
-    Output('speed_cadence_timeseries_graph', 'figure'),
-    Input('store_df', 'data'),
-    Input('store_df_moving', 'data'),
-    Input('elevation_graph', 'selectedData'),
-)
-def update_speed_cadence_timeseries(jsonified_df, jsonified_df_moving, selected_points):
-    if jsonified_df is not None:
-        df = pd.read_json(jsonified_df, orient='split')
-        df_moving = pd.read_json(jsonified_df_moving, orient='split')
-        if selected_points is not None:
-            selected_indexes = [d['pointIndex'] for d in selected_points['points']]
-            fig = geppetto.speed_cadence_timeseries(df=df,
-                                                    df_moving=df_moving,
-                                                    interval_unit="i",
-                                                    interval=[min(selected_indexes), max(selected_indexes)] if len(
-                                                        selected_indexes) > 0 else [0, 0])
-        else:
-            fig = geppetto.speed_cadence_timeseries(df=df,
-                                                    df_moving=df_moving,
-                                                    interval_unit="i",
-                                                    interval=[0, 0])
+# @app.callback(
+#     Output('speed_cadence_timeseries_graph', 'figure'),
+#     Input('store_df', 'data'),
+#     Input('store_df_moving', 'data'),
+#     Input('elevation_graph', 'selectedData'),
+#     Input('power_filter_slider', 'value'),
+# )
+# def update_speed_cadence_timeseries(jsonified_df, jsonified_df_moving, selected_points, power_filter_slider):
+#     if jsonified_df is not None:
+#         df = pd.read_json(jsonified_df, orient='split')
+#         df_moving = pd.read_json(jsonified_df_moving, orient='split')
+#         if selected_points is not None:
+#             selected_indexes = [d['pointIndex'] for d in selected_points['points']]
+#             fig = geppetto.speed_cadence_timeseries(df=df,
+#                                                     df_moving=df_moving,
+#                                                     interval_unit="i",
+#                                                     interval=[min(selected_indexes), max(selected_indexes)] if len(
+#                                                         selected_indexes) > 0 else [0, 0],
+#                                                     filter_window=int(
+#                                                         power_filter_slider) if power_filter_slider is not None else 0)
+#         else:
+#             fig = geppetto.speed_cadence_timeseries(df=df,
+#                                                     df_moving=df_moving,
+#                                                     interval_unit="i",
+#                                                     interval=[0, 0],
+#                                                     filter_window=int(
+#                                                         power_filter_slider) if power_filter_slider is not None else 0)
+#
+#         return fig
 
-        return fig
 
-
-@app.callback(
-    Output('speed_cadence_curve_graph', 'figure'),
-    Input('store_df', 'data'),
-    Input('store_df_moving', 'data'),
-    Input('elevation_graph', 'selectedData'),
-)
-def update_speed_cadence_curve(jsonified_df, jsonified_df_moving, selected_points):
-    if jsonified_df is not None:
-        df = pd.read_json(jsonified_df, orient='split')
-        df_moving = pd.read_json(jsonified_df_moving, orient='split')
-        if selected_points is not None:
-            selected_indexes = [d['pointIndex'] for d in selected_points['points']]
-            fig = geppetto.cadence_speed_curve(df=df,
-                                               df_moving=df_moving,
-                                               interval_unit="i",
-                                               interval=[min(selected_indexes), max(selected_indexes)] if len(
-                                                   selected_indexes) > 0 else [0, 0])
-        else:
-            fig = geppetto.cadence_speed_curve(df=df,
-                                               df_moving=df_moving,
-                                               interval_unit="i",
-                                               interval=[0, 0])
-
-        return fig
+# @app.callback(
+#     Output('speed_cadence_curve_graph', 'figure'),
+#     Input('store_df', 'data'),
+#     Input('store_df_moving', 'data'),
+#     Input('elevation_graph', 'selectedData'),
+# )
+# def update_speed_cadence_curve(jsonified_df, jsonified_df_moving, selected_points):
+#     if jsonified_df is not None:
+#         df = pd.read_json(jsonified_df, orient='split')
+#         df_moving = pd.read_json(jsonified_df_moving, orient='split')
+#         if selected_points is not None:
+#             selected_indexes = [d['pointIndex'] for d in selected_points['points']]
+#             fig = geppetto.cadence_speed_curve(df=df,
+#                                                df_moving=df_moving,
+#                                                interval_unit="i",
+#                                                interval=[min(selected_indexes), max(selected_indexes)] if len(
+#                                                    selected_indexes) > 0 else [0, 0])
+#         else:
+#             fig = geppetto.cadence_speed_curve(df=df,
+#                                                df_moving=df_moving,
+#                                                interval_unit="i",
+#                                                interval=[0, 0])
+#
+#         return fig
 
 
 @app.callback(

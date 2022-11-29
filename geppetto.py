@@ -308,8 +308,6 @@ def load(files, debug_plots=False, debug=False, csv=False):
 
 def stats(df, df_moving):
     s = '''
-    ** Stats **
-    
     Geodesic Distance 2D: **{c_dist_geo2d:.3f} km**
     
     Geodesic Distance 3D: **{c_dist_geo3d:.3f} km**
@@ -556,11 +554,12 @@ def plot_elevation(df, hover_index=None):
     fig.update_xaxes(showgrid=True,
                      showspikes=True,
                      title="2D distance (m)")
-    fig.update_yaxes(showgrid=True)
+    fig.update_yaxes(showgrid=True,
+                     title="Altitude (m)")
     fig.add_annotation(x=0.02, y=0.85, xanchor='left', yanchor='bottom',
                        xref='paper', yref='paper', showarrow=False, align='left',
                        text="Elevation")
-    fig.update_layout(height=400,
+    fig.update_layout(height=300,
                       margin={'l': 10, 'b': 10, 'r': 10, 't': 10},
                       hovermode='x',
                       selectdirection='h')
@@ -647,7 +646,7 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
                       )
         fig.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']) + 10,
                            text="{:.1f}".format(g),
-                           showarrow=False,
+                           showarrow=True,
                            arrowhead=0)
 
     # Minimap
@@ -683,12 +682,21 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
             )
         )
 
+    fig.update_xaxes(showgrid=True,
+                     showspikes=True,
+                     title="2D distance to destination (m)")
+
+    fig.update_yaxes(showgrid=True,
+                     showspikes=True,
+                     title="Altitude (m)")
+
     fig.update_layout(margin={"r": 20, "t": 20, "l": 20, "b": 20},
                       hovermode='x')
     return fig
 
 
 def estimate_power(df,
+                   df_moving,
                    interval_unit="m",
                    interval=(0, 0),
                    total_mass=76 + 1 + 1.5 + 8,
@@ -752,9 +760,14 @@ def estimate_power(df,
 
     # Work on a portion of the track
     df_selection = copy_segment(df,
-                                columns=['time', 'lon', 'lat', 'c_dist_geo2d', 'elev', 'c_speed', 'atemp', 'hr'],
+                                columns=['time', 'lon', 'lat', 'c_dist_geo2d', 'elev', 'c_speed', 'atemp', 'hr', 'cad',
+                                         'c_delta_time'],
                                 interval_unit=interval_unit,
                                 interval=interval)
+    df_moving_selection = copy_segment(df_moving,
+                                       columns=["c_delta_time", "c_speed"],
+                                       interval_unit=interval_unit,
+                                       interval=interval)
 
     # Compute gradient
     df_selection['c_elev_delta'] = df_selection.elev.diff().shift(-1)
@@ -770,6 +783,7 @@ def estimate_power(df,
     if filter_window > 0:
         df_selection['c_speed'] = df_selection['c_speed'].rolling(filter_window, center=True).mean()
         df_selection['c_gradient'] = df_selection['c_gradient'].rolling(filter_window, center=True).mean()
+        df_selection['cad'] = df_selection['cad'].rolling(filter_window, center=True).mean()
 
     # Compute power contributions
     df_selection["c_power_air"] = df_selection.apply(lambda x: power_air(x.c_speed,
@@ -795,8 +809,11 @@ def estimate_power(df,
     # B) Set all negative powers to zero
     df_selection.loc[df_selection["c_power"] < 0.0, "c_power"] = 0
 
+    # Calculate average cadence removing 0 cadence points
+    df_selection_0cadence = df_selection[df_selection['cad'] > 0.0]
+
     # Generate figure
-    fig = make_subplots(rows=1, cols=1, shared_xaxes=True, specs=[[{"secondary_y": True}]])
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, specs=[[{"secondary_y": True}], [{"secondary_y": True}]])
 
     fig.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
                              y=df_selection["c_power_grav"],
@@ -841,29 +858,104 @@ def estimate_power(df,
                   row=1,
                   col=1,
                   secondary_y=True)
-    fig.update_yaxes(showspikes=True, secondary_y=False)
-    fig.update_yaxes(showspikes=True, secondary_y=True)
-    fig.update_xaxes(showspikes=True)
 
-    fig.add_annotation(x=0.02, y=0.85, xanchor='left', yanchor='bottom',
+    fig.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
+                             y=3.6 * df_selection["c_speed"],
+                             name="Speed",
+                             hoverinfo='x+y',
+                             mode='markers',
+                             line=dict(width=1.0, color='blue'),
+                             marker=dict(size=4, color="blue")
+                             ),
+                  row=2,
+                  col=1,
+                  secondary_y=False)
+
+    fig.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
+                             y=df_selection["cad"],
+                             name="Cadence",
+                             hoverinfo='x+y',
+                             mode='markers',
+                             line=dict(width=1.0, color='grey'),
+                             marker=dict(size=4, color="grey")
+                             ),
+                  row=2,
+                  col=1,
+                  secondary_y=True)
+
+    fig.update_yaxes(row=1,
+                     col=1,
+                     secondary_y=False,
+                     showgrid=True,
+                     showspikes=True,
+                     title="Power (W)")
+
+    fig.update_yaxes(row=1,
+                     col=1,
+                     secondary_y=True,
+                     showgrid=True,
+                     showspikes=True,
+                     title="HR (bpm)")
+
+    fig.update_yaxes(row=2,
+                     col=1,
+                     secondary_y=False,
+                     showgrid=True,
+                     showspikes=True,
+                     title="Speed (km/h)")
+
+    fig.update_yaxes(row=2,
+                     col=1,
+                     secondary_y=True,
+                     showgrid=True,
+                     showspikes=True,
+                     title="Cadence (rpm)")
+
+    fig.update_xaxes(row=2,
+                     col=1,
+                     showgrid=True,
+                     showspikes=True,
+                     title="2D distance (m)")
+
+    # Power annotation
+    fig.add_annotation(x=0.00, y=0.50, xanchor='left', yanchor='bottom',
                        xref='paper', yref='paper', showarrow=False, align='left',
                        text="Average power: {:.0f} W".format(np.mean(df_selection['c_power'])))
 
-    fig.update_layout(legend=dict(orientation="h",
-                                  yanchor="bottom",
-                                  y=1.02,
+    # Speed and cadence annotation
+    annotation_text = """Average speed: {:.1f} km/h
+        Average moving speed: {:.1f} km/h
+        Average cadence: {:.0f} rpm
+        Average pedaling cadence: {:.0f} rpm 
+        """.format(
+        round((3.6 * sum((df_selection['c_speed'] * df_selection['c_delta_time'])) / sum(df_selection['c_delta_time'])),
+              2),
+        round((3.6 * sum((df_moving_selection['c_speed'] * df_moving_selection['c_delta_time'])) / sum(
+            df_moving_selection['c_delta_time'])), 2),
+        np.mean(df_selection['cad']),
+        np.mean(df_selection_0cadence['cad']))
+
+    fig.add_annotation(x=0.00, y=0.45, xanchor='left', yanchor='bottom',
+                       xref='paper', yref='paper', showarrow=False, align='left',
+                       text=annotation_text)
+
+    fig.update_layout(legend=dict(orientation="v",
+                                  yanchor="top",
+                                  y=1,
                                   xanchor="left",
-                                  x=0,
+                                  x=1.02,
                                   ),
                       margin={"r": 20, "t": 20, "l": 20, "b": 20},
-                      hovermode='x')
+                      hovermode='x',
+                      height=600)
     return fig
 
 
 def speed_cadence_timeseries(df,
                              df_moving,
                              interval_unit="m",
-                             interval=(0, 0)):
+                             interval=(0, 0),
+                             filter_window=4):
     """
     Shows speed and cadence (if available)
     :param df: dataframe to operate on
@@ -886,6 +978,11 @@ def speed_cadence_timeseries(df,
 
     # Calculate average cadence removing 0 cadence points
     df_selection_0cadence = df_selection[df_selection['cad'] > 0.0]
+
+    # Filter
+    if filter_window > 0:
+        df_selection['c_speed'] = df_selection['c_speed'].rolling(filter_window, center=True).mean()
+        df_selection['cad'] = df_selection['cad'].rolling(filter_window, center=True).mean()
 
     # Generate figure
     fig = make_subplots(rows=1, cols=1, shared_xaxes=True, specs=[[{"secondary_y": True}]])
@@ -935,18 +1032,17 @@ def speed_cadence_timeseries(df,
             df_moving_selection['c_delta_time'])), 2),
         np.mean(df_selection['cad']),
         np.mean(df_selection_0cadence['cad']))
-
-    fig.add_annotation(x=0.02, y=0.85, xanchor='left', yanchor='bottom',
+    fig.add_annotation(x=0.00, y=1.02, xanchor='left', yanchor='bottom',
                        xref='paper', yref='paper', showarrow=False, align='left',
                        text=annotation_text)
 
-    fig.update_layout(legend=dict(orientation="h",
-                                  yanchor="bottom",
-                                  y=1.02,
+    fig.update_layout(legend=dict(orientation="v",
+                                  yanchor="top",
+                                  y=1,
                                   xanchor="left",
-                                  x=0,
+                                  x=1.02,
                                   ),
-                      margin={"r": 20, "t": 20, "l": 20, "b": 20},
+                      margin={"r": 20, "t": 40, "l": 20, "b": 20},
                       hovermode='x')
 
     return fig
