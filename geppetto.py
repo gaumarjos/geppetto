@@ -519,7 +519,7 @@ def plot_elevation(df, hover_index=None):
                        xref='paper', yref='paper', showarrow=False, align='left',
                        text="Elevation")
     fig.update_layout(height=300,
-                      margin={'l': 10, 'b': 10, 'r': 10, 't': 10},
+                      margin={'l': 0, 'b': 0, 'r': 0, 't': 0},
                       hovermode='x',
                       selectdirection='h',
                       font=dict(
@@ -555,6 +555,12 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
         :param gradient_value: the gradient value
         :param half_n: half of the number of shades minus 1 (the center value).
         :return: a RGB tuple
+
+        To add:
+        Average gradient
+        Steepest 100m
+        Length
+        Total ascent
         """
         a = np.arange((half_n - 0.5), -half_n, -1.0)
         red = np.append(half_n * [255], np.linspace(255, 0, (half_n + 1)))
@@ -566,10 +572,57 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
     # Create a local copy of the input array of dataframes containing only the points belonging to the portion,
     # usually a climb, of interest
     df_climb = copy_segment(df,
-                            columns=["lon", "lat", "c_dist_geo2d", "elev"],
+                            columns=["lon", "lat", "c_dist_geo2d", "elev", 'c_delta_elev'],
                             interval_unit=interval_unit,
                             interval=interval)
 
+    # Total distance and average gradient
+    horizontal_dist = df_climb["c_dist_geo2d"].iloc[-1] - df_climb["c_dist_geo2d"].iloc[0]
+    vertical_dist = df_climb["elev"].iloc[-1] - df_climb["elev"].iloc[0]
+    avg_gradient = vertical_dist / horizontal_dist
+
+    # Elevation gain and loss
+    elev_gain = round(sum(df_climb[df_climb['c_delta_elev'] > 0]['c_delta_elev']), 2)
+    elev_loss = round(sum(df_climb[df_climb['c_delta_elev'] < 0]['c_delta_elev']), 2)
+
+    # Steepest 100m (only if the selected portion is short enough)
+    if horizontal_dist < 30000:
+
+        df_100m = df_climb.copy()
+        steepest_100m_list = []
+
+        # Stop search before 100 from the end
+        search_limit = df_100m["c_dist_geo2d"].iloc[-1] - 101
+
+        # For each point, calculate the average gradient of the 100m in front of it
+        for index, row in df_100m.iterrows():
+            if row['c_dist_geo2d'] < search_limit:
+                # Append item 100m after the current point and tag it "mock"
+                df_100m = pd.concat([df_100m, pd.DataFrame(data={'c_dist_geo2d': row['c_dist_geo2d'] + 100,
+                                                                 'mock': True}, index=[0])],
+                                    axis=0, join='outer', ignore_index=True)
+
+                # Interpolate its values
+                df_100m = df_100m.sort_values(by='c_dist_geo2d')
+                df_100m = df_100m.interpolate(method='linear', limit_direction='backward', limit=1)
+                index_of_mock = df_100m.index[df_100m['mock'] == True]
+                # print(df_100m)
+
+                # Elevation gain between a point and its mock 100m further
+                # print(df_100m.loc[index_of_mock]['elev'])
+                # print(row['elev'])
+                # print("{:.1f}m over {:.1f}m  ".format(float(df_100m.loc[index_of_mock]['elev'] - row['elev']), float(df_100m.loc[index_of_mock]['c_dist_geo2d'] - row['c_dist_geo2d'])))
+                steepest_100m_list.append(float(df_100m.loc[index_of_mock]['elev']) - row['elev'])
+                # Note: the math would be gain / 100 * 100 to have a %. It would be a waste of power.
+
+                # Remove mock point
+                df_100m.drop(index=index_of_mock, inplace=True)
+
+        steepest_100m = np.max(steepest_100m_list)
+    else:
+        steepest_100m = 0
+
+    # Prepare for gradient plot
     # Count distance backward from the end (top of the climb)
     df_climb['c_dist_geo2d_neg'] = -(df_climb["c_dist_geo2d"].iloc[-1] - df_climb["c_dist_geo2d"])
 
@@ -656,7 +709,17 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
                      showspikes=True,
                      title="Altitude (m)")
 
-    fig.update_layout(margin={"r": 20, "t": 20, "l": 20, "b": 20},
+    # Annotations
+    fig.add_annotation(x=0.01, y=0.95, text="Distance: {:.3f} km".format(horizontal_dist / 1000),
+                       xanchor='left', yanchor='bottom', xref='paper', yref='paper', showarrow=False, align='left')
+    fig.add_annotation(x=0.01, y=0.90, text="Gain/Loss: {:.0f}/{:.0f} m".format(elev_gain, elev_loss),
+                       xanchor='left', yanchor='bottom', xref='paper', yref='paper', showarrow=False, align='left')
+    fig.add_annotation(x=0.01, y=0.85, text="Average gradient: {:.1f} %".format(avg_gradient * 100),
+                       xanchor='left', yanchor='bottom', xref='paper', yref='paper', showarrow=False, align='left')
+    fig.add_annotation(x=0.01, y=0.80, text="Steepest 100m: {:.1f} %".format(steepest_100m),
+                       xanchor='left', yanchor='bottom', xref='paper', yref='paper', showarrow=False, align='left')
+
+    fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},
                       hovermode='x',
                       font=dict(
                           family="Helvetica",
@@ -918,7 +981,7 @@ def estimate_power(df,
                                   xanchor="left",
                                   x=1.02,
                                   ),
-                      margin={"r": 20, "t": 20, "l": 20, "b": 20},
+                      margin={"r": 0, "t": 0, "l": 0, "b": 0},
                       hovermode='x',
                       height=600,
                       font=dict(
@@ -928,103 +991,6 @@ def estimate_power(df,
                       ),
                       paper_bgcolor='rgba(0,0,0,0)',
                       )
-    return fig
-
-
-def speed_cadence_timeseries(df,
-                             df_moving,
-                             interval_unit="m",
-                             interval=(0, 0),
-                             filter_window=4):
-    """
-    Shows speed and cadence (if available)
-    :param df: dataframe to operate on
-    :param df_moving:
-    :param interval_unit: can be "m" for meters or "i" for index
-    :param interval: the gradient is calculated over the portion [start_meter, end_meter] of the input trace
-    :return: a figure
-    """
-
-    # Create a local copy of the input array of dataframes containing only the points belonging to the portion,
-    # usually a climb, of interest
-    df_selection = copy_segment(df,
-                                columns=["lon", "lat", "c_dist_geo2d", "c_speed", "cad", "c_delta_time"],
-                                interval_unit=interval_unit,
-                                interval=interval)
-    df_moving_selection = copy_segment(df_moving,
-                                       columns=["c_delta_time", "c_speed"],
-                                       interval_unit=interval_unit,
-                                       interval=interval)
-
-    # Calculate average cadence removing 0 cadence points
-    df_selection_0cadence = df_selection[df_selection['cad'] > 0.0]
-
-    # Filter
-    if filter_window > 0:
-        df_selection['c_speed'] = df_selection['c_speed'].rolling(filter_window, center=True).mean()
-        df_selection['cad'] = df_selection['cad'].rolling(filter_window, center=True).mean()
-
-    # Generate figure
-    fig = make_subplots(rows=1, cols=1, shared_xaxes=True, specs=[[{"secondary_y": True}]])
-    fig.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
-                             y=df_selection["c_speed"],
-                             name="Speed",
-                             mode='markers',
-                             line=dict(
-                                 width=1,
-                                 color="red"),
-                             marker=dict(
-                                 size=4,
-                                 color="red")
-                             ),
-                  secondary_y=False,
-                  )
-
-    # Plot cadence only if it's not all nan
-    if len(df_selection["cad"]) > df_selection["cad"].isna().sum():
-        fig.add_trace(go.Scatter(x=df_selection["c_dist_geo2d"],
-                                 y=df_selection["cad"],
-                                 name="Cadence",
-                                 mode='markers',
-                                 line=dict(
-                                     width=1,
-                                     color="blue"),
-                                 marker=dict(
-                                     size=4,
-                                     color="blue")
-                                 ),
-                      secondary_y=True,
-                      )
-
-    fig.update_yaxes(showspikes=True, secondary_y=True)
-    fig.update_yaxes(showspikes=True, secondary_y=True)
-    fig.update_xaxes(showspikes=True)
-
-    annotation_text = """
-    Average speed: {:.1f} km/h
-    Average moving speed: {:.1f} km/h
-    Average cadence: {:.0f} rpm
-    Average pedaling cadence: {:.0f} rpm 
-    """.format(
-        round((3.6 * sum((df_selection['c_speed'] * df_selection['c_delta_time'])) / sum(df_selection['c_delta_time'])),
-              2),
-        round((3.6 * sum((df_moving_selection['c_speed'] * df_moving_selection['c_delta_time'])) / sum(
-            df_moving_selection['c_delta_time'])), 2),
-        np.mean(df_selection['cad']),
-        np.mean(df_selection_0cadence['cad']))
-    fig.add_annotation(x=0.00, y=1.02, xanchor='left', yanchor='bottom',
-                       xref='paper', yref='paper', showarrow=False, align='left',
-                       text=annotation_text)
-
-    fig.update_layout(legend=dict(orientation="v",
-                                  yanchor="top",
-                                  y=1,
-                                  xanchor="left",
-                                  x=1.02,
-                                  ),
-                      margin={"r": 20, "t": 40, "l": 20, "b": 20},
-                      hovermode='x')
-
     return fig
 
 
@@ -1076,7 +1042,7 @@ def cadence_speed_curve(df,
     fig.update_xaxes(range=[40, 110])
     fig.update_yaxes(range=[0, 60.])
     fig.update_layout(title="Cadence - Speed curve")
-    fig.update_layout(margin={"r": 20, "t": 20, "l": 20, "b": 20})
+    fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
     return fig
 
 
@@ -1108,12 +1074,12 @@ def main():
         # print(stats(df, df_moving))
         # plot_map(df).show()
         # plot_elevation(df).show()
-        # gradient(df, interval=[33739, 48124], resolution=500).show()
+        gradient(df, interval=[33739, 34000], resolution=500).show()
         # estimate_power(df, interval=[0, 0]).show()
         # speed_cadence_timeseries(df, interval=[0, 0]).show()
-        cadence_speed_curve(df, interval=[0, 0]).show()
+        # cadence_speed_curve(df, interval=[0, 0]).show()
 
-    read_mapbox_token()
+    # read_mapbox_token()
 
 
 if __name__ == "__main__":
