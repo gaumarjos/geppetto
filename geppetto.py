@@ -420,49 +420,6 @@ def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0
     :param interval: the interval of interest
     :return:
     """
-    assert map_trace_color_param in ('elev', 'c_dist_geo2d', 'c_speed')
-    df_selection = copy_segment(df,
-                                columns=["lon", "lat", "c_dist_geo2d", "elev", 'c_speed'],
-                                interval_unit=interval_unit,
-                                interval=interval)
-
-    fig = go.Figure()
-    fig.add_trace(go.Scattermapbox(lat=df_selection["lat"],
-                                   lon=df_selection["lon"],
-                                   mode='lines+markers',
-                                   marker=go.scattermapbox.Marker(size=6,
-                                                                  color=df_selection[map_trace_color_param],
-                                                                  colorscale=px.colors.sequential.Bluered),
-                                   hovertext=df_selection['c_dist_geo2d'],
-                                   subplot='mapbox',
-                                   )
-                  )
-    fig.update_layout(
-        hovermode='closest',
-        mapbox=dict(
-            style="open-street-map",
-            bearing=0,
-            center=go.layout.mapbox.Center(
-                lat=np.mean(df_selection["lat"]),
-                lon=np.mean(df_selection["lon"])
-            ),
-            pitch=0,
-            zoom=11
-        )
-    )
-    fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
-    return fig
-
-
-def plot_map2(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0)):
-    """
-
-    :param df: dataframe to operate on
-    :param map_trace_color_param: parameter to control the trace color
-    :param interval_unit: 'm'=meters or 'i'=index
-    :param interval: the interval of interest
-    :return:
-    """
 
     df_selection = copy_segment(df,
                                 columns=["lon", "lat", "c_dist_geo2d", "elev", 'c_speed'],
@@ -512,8 +469,10 @@ def plot_map2(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 
                                                                    lon=np.mean(df_selection["lon"])),
 
                                     ),
-                       margin={'l': 10, 'b': 10, 't': 10, 'r': 10},
-                       height=600,
+                       margin={'l': 0, 'b': 0, 't': 0, 'r': 0},
+                       minreducedheight=400,
+                       minreducedwidth=400,
+                       paper_bgcolor='rgba(0,0,0,0)',
                        )
     fig = go.Figure(data=data, layout=layout)
 
@@ -562,7 +521,14 @@ def plot_elevation(df, hover_index=None):
     fig.update_layout(height=300,
                       margin={'l': 10, 'b': 10, 'r': 10, 't': 10},
                       hovermode='x',
-                      selectdirection='h')
+                      selectdirection='h',
+                      font=dict(
+                          family="Helvetica",
+                          size=10,
+                          color="Gray",
+                      ),
+                      paper_bgcolor='rgba(0,0,0,0)',
+                      )
 
     return fig
 
@@ -691,7 +657,14 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
                      title="Altitude (m)")
 
     fig.update_layout(margin={"r": 20, "t": 20, "l": 20, "b": 20},
-                      hovermode='x')
+                      hovermode='x',
+                      font=dict(
+                          family="Helvetica",
+                          size=10,
+                          color="Gray",
+                      ),
+                      paper_bgcolor='rgba(0,0,0,0)',
+                      )
     return fig
 
 
@@ -947,7 +920,14 @@ def estimate_power(df,
                                   ),
                       margin={"r": 20, "t": 20, "l": 20, "b": 20},
                       hovermode='x',
-                      height=600)
+                      height=600,
+                      font=dict(
+                          family="Helvetica",
+                          size=10,
+                          color="Gray",
+                      ),
+                      paper_bgcolor='rgba(0,0,0,0)',
+                      )
     return fig
 
 

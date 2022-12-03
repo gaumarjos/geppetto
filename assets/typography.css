@@ -1,0 +1,13 @@
+body {
+  font-family: Helvetica;
+  font-size: 10px;
+}
+
+.card_header {
+    font-size: 12px;
+    font-weight: regular;
+}
+
+.vspacer {
+    height: 15px;
+}
