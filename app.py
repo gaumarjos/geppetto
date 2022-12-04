@@ -368,9 +368,10 @@ def update_zoom_info(relayout_data, zoom_info):
     Input('store_df', 'data'),
     Input('elevation_graph', 'selectedData'),
     Input('map_trace_color', 'value'),
-    Input('elevation_graph', 'hoverData')
+    Input('elevation_graph', 'hoverData'),
+    State('map_zoom_info', 'data')
 )
-def update_map(jsonified_df, selected_points, map_trace_color, hoverData):
+def update_map(jsonified_df, selected_points, map_trace_color, hoverData, zoom):
     if jsonified_df is not None:
         df = pd.read_json(jsonified_df, orient='split')
 
@@ -385,13 +386,15 @@ def update_map(jsonified_df, selected_points, map_trace_color, hoverData):
                                     interval_unit="i",
                                     interval=[min(selected_indexes), max(selected_indexes)] if len(
                                         selected_indexes) > 0 else [0, 0],
-                                    hover_index=hover_index)
+                                    hover_index=hover_index,
+                                    zoom=zoom)
         else:
             fig = geppetto.plot_map(df=df,
                                     map_trace_color_param=map_trace_color,
                                     interval_unit="i",
                                     interval=[0, 0],
-                                    hover_index=hover_index)
+                                    hover_index=hover_index,
+                                    zoom=zoom)
 
         return fig
 

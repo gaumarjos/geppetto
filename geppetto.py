@@ -411,7 +411,7 @@ def copy_segment(df, columns, interval_unit="m", interval=(0, 0)):
     return df_segment
 
 
-def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0), hover_index=None):
+def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0), hover_index=None, zoom=None):
     """
 
     :param df: dataframe to operate on
