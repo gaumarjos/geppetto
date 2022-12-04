@@ -94,8 +94,10 @@ app.layout = dbc.Container(
                                                                 ),
                                                             ],
                                                         ),
-                                                        dcc.Store(id='map_store'),
                                                         # Used by plotly bug workaround
+                                                        dcc.Store(id='map_store'),
+                                                        # Used to save the zoom info
+                                                        dcc.Store(id='map_zoom_info'),
                                                         dcc.Graph(id='map_graph',
                                                                   animate=False
                                                                   ),
@@ -346,28 +348,50 @@ def load_trace(filename):
         return None, None
 
 
+# To keep the map zoom info up to date in "map_zoom_info"
+@app.callback(
+    Output('map_zoom_info', 'data'),
+    Input('map_graph', 'relayoutData'),
+    Input('map_zoom_info', 'data')
+)
+def update_zoom_info(relayout_data, zoom_info):
+    if zoom_info is None:
+        return relayout_data
+    else:
+        zoom_info.update(relayout_data)
+        return zoom_info
+
+
 @app.callback(
     # Output('map_graph', 'figure'),  # Replaced by the next line
     Output('map_store', 'data'),  # Used by plotly bug workaround
     Input('store_df', 'data'),
     Input('elevation_graph', 'selectedData'),
-    Input('map_trace_color', 'value')
+    Input('map_trace_color', 'value'),
+    Input('elevation_graph', 'hoverData')
 )
-def update_map(jsonified_df, selected_points, map_trace_color):
+def update_map(jsonified_df, selected_points, map_trace_color, hoverData):
     if jsonified_df is not None:
         df = pd.read_json(jsonified_df, orient='split')
+
+        hover_index = None
+        if hoverData is not None:
+            hover_index = hoverData['points'][0]['pointIndex']
+
         if selected_points is not None:
             selected_indexes = [d['pointIndex'] for d in selected_points['points']]
             fig = geppetto.plot_map(df=df,
                                     map_trace_color_param=map_trace_color,
                                     interval_unit="i",
                                     interval=[min(selected_indexes), max(selected_indexes)] if len(
-                                        selected_indexes) > 0 else [0, 0])
+                                        selected_indexes) > 0 else [0, 0],
+                                    hover_index=hover_index)
         else:
             fig = geppetto.plot_map(df=df,
                                     map_trace_color_param=map_trace_color,
                                     interval_unit="i",
-                                    interval=[0, 0])
+                                    interval=[0, 0],
+                                    hover_index=hover_index)
 
         return fig
 

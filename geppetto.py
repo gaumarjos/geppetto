@@ -411,7 +411,7 @@ def copy_segment(df, columns, interval_unit="m", interval=(0, 0)):
     return df_segment
 
 
-def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0)):
+def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0), hover_index=None):
     """
 
     :param df: dataframe to operate on
@@ -475,6 +475,21 @@ def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0
                        paper_bgcolor='rgba(0,0,0,0)',
                        )
     fig = go.Figure(data=data, layout=layout)
+
+    # Yellow dot
+    if hover_index is not None:
+        assert hover_index >= 0
+        fig.add_trace(go.Scattermapbox(lat=[df.iloc[hover_index]['lat']],
+                                       lon=[df.iloc[hover_index]['lon']],
+                                       mode='markers',
+                                       marker=dict(
+                                           size=6,
+                                           color="yellow"),
+                                       subplot='mapbox2',
+                                       name='',
+                                       showlegend=False,
+                                       )
+                      )
 
     return fig
 
