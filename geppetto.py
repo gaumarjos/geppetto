@@ -49,7 +49,11 @@ def load(files, debug_plots=False, debug=False, csv=False):
         gpx = gpxpy.parse(open(file, 'r'))
         points = gpx.tracks[0].segments[0].points
         local_df = pd.DataFrame(columns=['time', 'lon', 'lat', 'elev', 'atemp', 'hr', 'cad'])
-        for point in points:
+
+        # Base time if needed
+        tz = datetime.timezone(datetime.timedelta(0))
+        basetime = datetime.datetime(1900, 1, 1, 0, 0, 0, tzinfo=tz)
+        for count, point in enumerate(points):
             # See what extension tags are there
             atemp = None
             hr = None
@@ -63,15 +67,16 @@ def load(files, debug_plots=False, debug=False, csv=False):
                     elif extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}cad":
                         cad = float(extchild.text)
             # Add data to the df
-            local_df = pd.concat([local_df, pd.DataFrame(data={'time': point.time,
-                                                               'lon': point.longitude,
-                                                               'lat': point.latitude,
-                                                               'elev': point.elevation,
-                                                               'atemp': atemp if atemp is not None else default_atemp,
-                                                               'hr': hr if hr is not None else np.nan,
-                                                               'cad': cad if cad is not None else np.nan,
-                                                               },
-                                                         index=[0])],
+            local_df = pd.concat([local_df, pd.DataFrame(
+                data={'time': point.time if point.time is not None else basetime + datetime.timedelta(seconds=count),
+                      'lon': point.longitude,
+                      'lat': point.latitude,
+                      'elev': point.elevation,
+                      'atemp': atemp if atemp is not None else default_atemp,
+                      'hr': hr if hr is not None else np.nan,
+                      'cad': cad if cad is not None else np.nan,
+                      },
+                index=[0])],
                                  axis=0,
                                  join='outer',
                                  ignore_index=True)
@@ -307,26 +312,27 @@ def load(files, debug_plots=False, debug=False, csv=False):
 
 
 def stats(df, df_moving):
-    s = '''
-    Geodesic Distance 2D: **{c_dist_geo2d:.3f} km**
-    
-    Geodesic Distance 3D: **{c_dist_geo3d:.3f} km**
-    
-    Elevation Correction (geodesic 3D-2D): **{delta_c_dist_sph:.0f} m**
-    
-    Total Time: **{total_time}**
-    
-    Elevation Gain: **{elev_gain:.0f}**
-    
-    Elevation Loss: **{elev_loss:.0f}**
-    
-    Maximum Speed: **{max_c_speed:.1f} km/h**
-    
-    Average Speed: **{avg_c_speed:.1f} km/h**
-    
-    Average Moving Speed: **{avg_moving_c_speed:.1f} km/h**
-    
-    Moving Time: **{moving_time}**
+    datecheck = datetime.datetime.strptime(df.iloc[0]["time"], "%Y-%m-%dT%H:%M:%S.%fZ")
+    if datecheck.year != 1900:
+        s = '''Geodesic Distance 2D: **{c_dist_geo2d:.3f} km**
+        
+Geodesic Distance 3D: **{c_dist_geo3d:.3f} km**
+        
+Distance Correction (geodesic 3D-2D): **{delta_c_dist_sph:.0f} m**
+        
+Total Time: **{total_time}**
+        
+Elevation Gain: **{elev_gain:.0f}**
+        
+Elevation Loss: **{elev_loss:.0f}**
+        
+Maximum Speed: **{max_c_speed:.1f} km/h**
+        
+Average Speed: **{avg_c_speed:.1f} km/h**
+        
+Average Moving Speed: **{avg_moving_c_speed:.1f} km/h**
+        
+Moving Time: **{moving_time}**
 '''.format(c_dist_geo2d=df['c_dist_geo2d'].iloc[-1] / 1000,
            c_dist_geo3d=df['c_dist_geo3d'].iloc[-1] / 1000,
            delta_c_dist_sph=df['c_dist_geo3d'].iloc[-1] - df['c_dist_geo2d'].iloc[-1],
@@ -338,6 +344,23 @@ def stats(df, df_moving):
            avg_moving_c_speed=round(
                (3.6 * sum((df_moving['c_speed'] * df_moving['c_delta_time'])) / sum(df_moving['c_delta_time'])), 2),
            moving_time=str(datetime.timedelta(seconds=sum(df_moving['c_delta_time']))))
+    else:
+        s = '''Geodesic Distance 2D: **{c_dist_geo2d:.3f} km**
+
+Geodesic Distance 3D: **{c_dist_geo3d:.3f} km**
+
+Distance Correction (geodesic 3D-2D): **{delta_c_dist_sph:.0f} m**
+
+Elevation Gain: **{elev_gain:.0f}**
+
+Elevation Loss: **{elev_loss:.0f}**
+
+**Timestamp missing in source file**
+'''.format(c_dist_geo2d=df['c_dist_geo2d'].iloc[-1] / 1000,
+           c_dist_geo3d=df['c_dist_geo3d'].iloc[-1] / 1000,
+           delta_c_dist_sph=df['c_dist_geo3d'].iloc[-1] - df['c_dist_geo2d'].iloc[-1],
+           elev_gain=round(sum(df[df['c_delta_elev'] > 0]['c_delta_elev']), 2),
+           elev_loss=round(sum(df[df['c_delta_elev'] < 0]['c_delta_elev']), 2))
 
     return s
 
@@ -418,6 +441,8 @@ def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0
     :param map_trace_color_param: parameter to control the trace color
     :param interval_unit: 'm'=meters or 'i'=index
     :param interval: the interval of interest
+    :param hover_index:
+    :param zoom:
     :return:
     """
 
@@ -461,7 +486,6 @@ def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0
     layout = go.Layout(hovermode='closest',
                        mapbox2=dict(style="open-street-map",
                                     accesstoken=mapbox_token,
-                                    # domain={'x': [0.66, 0.99], 'y': [0.01, 0.33]},
                                     bearing=0,
                                     pitch=0,
                                     zoom=10,
@@ -473,6 +497,8 @@ def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0
                        minreducedheight=400,
                        minreducedwidth=400,
                        paper_bgcolor='rgba(0,0,0,0)',
+                       # autosize=False,
+                       # uirevision=df_selection,
                        )
     fig = go.Figure(data=data, layout=layout)
 
@@ -490,6 +516,23 @@ def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0
                                        showlegend=False,
                                        )
                       )
+
+    # CONTROLLARE STO COSO
+    # print(zoom)
+    """
+    if zoom:
+        for axis_name in ['axis', 'axis2']:
+            if f'x{axis_name}.range[0]' in zoom:
+                fig['layout'][f'x{axis_name}']['range'] = [
+                    zoom[f'x{axis_name}.range[0]'],
+                    zoom[f'x{axis_name}.range[1]']
+                ]
+            if f'y{axis_name}.range[0]' in zoom:
+                fig['layout'][f'y{axis_name}']['range'] = [
+                    zoom[f'y{axis_name}.range[0]'],
+                    zoom[f'y{axis_name}.range[1]']
+                ]
+    """
 
     return fig
 

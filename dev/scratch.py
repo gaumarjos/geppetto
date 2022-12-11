@@ -1,3 +1,14 @@
+import datetime
+
+str = "2022-09-01T08:04:05.000Z"
+date = datetime.datetime.strptime(str, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+
+
+
+
+'''
 import dash_bootstrap_components as dbc
 from dash import Dash, html, dcc, Input, Output, State
 
@@ -29,7 +40,7 @@ app.layout = html.Div(
 if __name__ == '__main__':
     app.run_server(debug=True)
 
-
+'''
 
 '''
 def update_map3(selected_points):

@@ -28,7 +28,6 @@ Although unnecessary, a Mapbox token can be added in this file:
 
 | Status     | Item                                                           |
 |:----------:|----------------------------------------------------------------|
-| WIP        | The app interface looks very bad |
 | TODO       | Weird overlap of values on the left of "more and more local passes" trace. Uncommenting the steps line in geppetto causes the gradient function to crash. |
 | Workaround | Tap plot doesn't update when a new file is loaded or a portion of it is selected from the elevation plot. Posted here https://github.com/plotly/dash/issues/1152. It has been solved with this workaround https://github.com/plotly/plotly.js/issues/6363. |
 
@@ -62,3 +61,7 @@ Although unnecessary, a Mapbox token can be added in this file:
 * https://dash-bootstrap-components.opensource.faculty.ai/docs/components/card/
 * https://stackoverflow.com/questions/63592900/plotly-dash-how-to-design-the-layout-using-dash-bootstrap-components
 * https://github.com/facultyai/dash-bootstrap-components/issues/286
+* https://community.plotly.com/t/preserving-ui-state-like-zoom-in-dcc-graph-with-uirevision-with-dash/15793
+* https://stackoverflow.com/questions/70548975/how-to-add-values-from-selecteddata-input-to-a-list
+* https://plotly.com/python-api-reference/generated/plotly.graph_objects.Scattermapbox.html
+* 

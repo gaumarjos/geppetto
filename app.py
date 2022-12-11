@@ -29,8 +29,8 @@ app.layout = dbc.Container(
                         dbc.CardBody(
                             [
                                 dcc.Dropdown(
-                                    os.listdir(TRACK_DIRECTORY),
-                                    os.listdir(TRACK_DIRECTORY)[0],
+                                    sorted(os.listdir(TRACK_DIRECTORY)),
+                                    sorted(os.listdir(TRACK_DIRECTORY))[0],
                                     id='imported_files',
                                     searchable=True,
                                     clearable=False,
@@ -99,7 +99,7 @@ app.layout = dbc.Container(
                                                         # Used to save the zoom info
                                                         dcc.Store(id='map_zoom_info'),
                                                         dcc.Graph(id='map_graph',
-                                                                  animate=False
+                                                                  animate=False,
                                                                   ),
                                                     ],
                                                 ),
@@ -352,9 +352,10 @@ def load_trace(filename):
 @app.callback(
     Output('map_zoom_info', 'data'),
     Input('map_graph', 'relayoutData'),
-    Input('map_zoom_info', 'data')
+    Input('map_zoom_info', 'data'),
 )
 def update_zoom_info(relayout_data, zoom_info):
+    # print(relayout_data)
     if zoom_info is None:
         return relayout_data
     else:
