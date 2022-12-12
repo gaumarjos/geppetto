@@ -504,18 +504,18 @@ def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0
 
     # Yellow dot
     if hover_index is not None:
-        assert hover_index >= 0
-        fig.add_trace(go.Scattermapbox(lat=[df.iloc[hover_index]['lat']],
-                                       lon=[df.iloc[hover_index]['lon']],
-                                       mode='markers',
-                                       marker=dict(
-                                           size=6,
-                                           color="yellow"),
-                                       subplot='mapbox2',
-                                       name='',
-                                       showlegend=False,
-                                       )
-                      )
+        if (hover_index >= 0) and (hover_index <= df.shape[0]):
+            fig.add_trace(go.Scattermapbox(lat=[df.iloc[hover_index]['lat']],
+                                           lon=[df.iloc[hover_index]['lon']],
+                                           mode='markers',
+                                           marker=dict(
+                                               size=6,
+                                               color="yellow"),
+                                           subplot='mapbox2',
+                                           name='',
+                                           showlegend=False,
+                                           )
+                          )
 
     # CONTROLLARE STO COSO
     # print(zoom)
@@ -851,6 +851,12 @@ def estimate_power(df,
         """
         force_grav = np.sin(np.arctan(gradient)) * m * const.g
         return force_grav * speed / (1.0 - losses_drivetrain)
+
+    # Check if timestamp exists. If not, just return None.
+    # TODO
+    #datecheck = datetime.datetime.strptime(df.iloc[0]["time"], "%Y-%m-%dT%H:%M:%S.%fZ")
+    #if datecheck.year == 1900:
+    #    return None
 
     # Work on a portion of the track
     df_selection = copy_segment(df,
