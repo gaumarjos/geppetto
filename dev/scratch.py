@@ -1,8 +1,43 @@
-import datetime
+# import app
+#
+# print(app.get_file_list())
 
-str = "2022-09-01T08:04:05.000Z"
-date = datetime.datetime.strptime(str, "%Y-%m-%dT%H:%M:%S.%fZ")
 
+
+from geopy.geocoders import Nominatim
+import gpxpy
+
+import geppetto
+
+
+def location_info(file):
+        """
+        Import a gpx file
+        :param file: filename
+        :return: location info
+        """
+        gpx = gpxpy.parse(open(file, 'r'))
+        lon = gpx.tracks[0].segments[0].points[0].longitude
+        lat = gpx.tracks[0].segments[0].points[0].latitude
+
+        geolocator = Nominatim(user_agent="geoapiExercises")
+        location = geolocator.reverse(str(lat) + "," + str(lon))
+
+        return location.raw["address"]
+        # return location.raw["display_name"]
+
+# {'road': 'Strada Provinciale per Succiso', 'suburb': 'Pieve San Vincenzo', 'village': 'Cecciola', 'municipality': 'Ventasso', 'county': "Reggio nell'Emilia", 'ISO3166-2-lvl6': 'IT-RE', 'state': 'Emilia-Romagna', 'ISO3166-2-lvl4': 'IT-45', 'country': 'Italia', 'country_code': 'it'}
+print(geppetto.location_info("tracks/The_local_4_or_5_passes.gpx"))
+
+
+
+
+
+
+# import datetime
+# str = "2022-09-01T08:04:05.000Z"
+# date = datetime.datetime.strptime(str, "%Y-%m-%dT%H:%M:%S.%fZ")
+#
 
 
 

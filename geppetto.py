@@ -11,6 +11,7 @@ from plotly.subplots import make_subplots
 import scipy.constants as const
 import os
 import fitdecode
+from geopy.geocoders import Nominatim
 
 
 def read_mapbox_token(file="mapbox_token.txt"):
@@ -23,6 +24,40 @@ def read_mapbox_token(file="mapbox_token.txt"):
 
 
 mapbox_token = read_mapbox_token()
+
+
+def location_info(file):
+    """
+    Import a gpx file
+    :param file: filename
+    :return: location info
+    """
+
+    name, extension = os.path.splitext(file)
+    if extension == ".gpx":
+        gpx = gpxpy.parse(open(file, 'r'))
+        lon = gpx.tracks[0].segments[0].points[0].longitude
+        lat = gpx.tracks[0].segments[0].points[0].latitude
+
+        geolocator = Nominatim(user_agent="geoapiExercises")
+        location = geolocator.reverse(str(lat) + "," + str(lon))
+
+        # return location.raw["display_name"]
+        interesting_keys = ('suburb', 'village', 'municipality', 'county', 'state')
+        s = ""
+        first = True
+        for key in interesting_keys:
+            if key in location.raw['address']:
+                if first:
+                    s = s + "(" + location.raw['address'][key]
+                    first = False
+                else:
+                    s = s + ", " + location.raw['address'][key]
+        s = s + ")"
+        return s
+
+    else:
+        return ""
 
 
 def load(files, debug_plots=False, debug=False, csv=False):
@@ -854,8 +889,8 @@ def estimate_power(df,
 
     # Check if timestamp exists. If not, just return None.
     # TODO
-    #datecheck = datetime.datetime.strptime(df.iloc[0]["time"], "%Y-%m-%dT%H:%M:%S.%fZ")
-    #if datecheck.year == 1900:
+    # datecheck = datetime.datetime.strptime(df.iloc[0]["time"], "%Y-%m-%dT%H:%M:%S.%fZ")
+    # if datecheck.year == 1900:
     #    return None
 
     # Work on a portion of the track

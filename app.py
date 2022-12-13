@@ -1,6 +1,5 @@
 from dash import Dash, html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
-# import dash_mantine_components as dmc
 import pandas as pd
 import os
 # import webbrowser
@@ -14,6 +13,18 @@ app = Dash(__name__,
            external_stylesheets=[dbc.themes.FLATLY],
            eager_loading=True,
            )
+
+
+def get_file_list(folder=TRACK_DIRECTORY):
+    l = []
+    for file in sorted(os.listdir(folder)):
+        l.append({'label': "{} {}".format(file, geppetto.location_info(TRACK_DIRECTORY + file)),
+                  'value': file,
+                  })
+    return l
+
+
+file_dropdown_list = get_file_list()
 
 app.layout = dbc.Container(
     children=[
@@ -29,8 +40,8 @@ app.layout = dbc.Container(
                         dbc.CardBody(
                             [
                                 dcc.Dropdown(
-                                    sorted(os.listdir(TRACK_DIRECTORY)),
-                                    sorted(os.listdir(TRACK_DIRECTORY))[0],
+                                    file_dropdown_list,
+                                    file_dropdown_list[0]['value'],
                                     id='imported_files',
                                     searchable=True,
                                     clearable=False,

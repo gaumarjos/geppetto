@@ -2,7 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="de16e542-92d0-4201-b9c7-0ce933c02bb6" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/docs/screenshot.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev/scratch.py" beforeDir="false" afterPath="$PROJECT_DIR$/dev/scratch.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/geppetto.py" beforeDir="false" afterPath="$PROJECT_DIR$/geppetto.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -45,14 +49,14 @@
       <recent name="$PROJECT_DIR$/tracks" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/docs" />
       <recent name="$PROJECT_DIR$" />
       <recent name="$PROJECT_DIR$/assets" />
-      <recent name="$PROJECT_DIR$/docs" />
       <recent name="$PROJECT_DIR$/tracks" />
     </key>
   </component>
   <component name="RunManager">
-    <configuration name="fit_reader" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="scratch" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="geppetto" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -64,7 +68,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/fit_reader.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/dev/scratch.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -75,7 +79,7 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.fit_reader" />
+        <item itemvalue="Python.scratch" />
       </list>
     </recent_temporary>
   </component>

@@ -1,10 +1,8 @@
-# GePpetto
+# Geppetto
 
-A homemade gpx viewer able to create climb gradient plots.
+A browser-based gpx (and fit) track analyser, great for cycling traces.
 
-    python app.py
-
-Then open [http://localhost:8050/](http://localhost:8050/) in a web browser.
+![alt text](docs/screenshot.png "Screenshot")
 
 ## Requirements
 
@@ -12,9 +10,11 @@ Developed with Python 10.0.0. Install required modules with:
 
     pip install -r requirements.txt
 
-Although unnecessary, a Mapbox token can be added in this file:
+## Launch the app
 
-    mapbox_token.txt
+    python app.py
+
+Then open [http://localhost:8050/](http://localhost:8050/) in a web browser.
 
 ## Project structure
 
