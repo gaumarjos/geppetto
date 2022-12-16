@@ -12,21 +12,64 @@ import scipy.constants as const
 import os
 import fitdecode
 from geopy.geocoders import Nominatim
+import json
+
+TRACK_LIST = "tracklist.json"
 
 
-def read_mapbox_token(file="mapbox_token.txt"):
-    try:
-        with open(file) as f:
-            lines = f.readlines()
-            return lines[0]
-    except:
-        return ""
+def scan_files(folder, verbose=False):
+    if os.path.exists(TRACK_LIST):
+        with open(TRACK_LIST, "r") as json_file:
+            # Extract list from json
+            data_in_json = json.load(json_file)
+            l = []
+            for item in data_in_json:
+                l.append(item['value'])
+            files_in_json = sorted(l)
+
+            # List files in folder
+            files_in_folder = sorted(os.listdir(folder))
+
+            if verbose:
+                print(files_in_json)
+                print(files_in_folder)
+
+            # Compare
+            if files_in_json == files_in_folder:
+                if verbose:
+                    print("Use json")
+                return data_in_json
+            else:
+                if verbose:
+                    print("Update json")
+                return files_location_info(folder=folder)
+    else:
+        if verbose:
+            print("Create json")
+        return files_location_info(folder=folder)
 
 
-mapbox_token = read_mapbox_token()
+def files_location_info(folder):
+    """
+    Scan a folder
+    :param folder:
+    :return:
+    """
+    l = []
+    for file in sorted(os.listdir(folder)):
+        l.append({'label': "{} {}".format(file, file_location_info(folder + file)),
+                  'value': file,
+                  })
+
+    # Dump result in json
+    with open(TRACK_LIST, "w") as json_file:
+        json.dump(l, json_file, indent=4)
+
+    # Return list to be used in dropdown
+    return l
 
 
-def location_info(file):
+def file_location_info(file):
     """
     Import a gpx file
     :param file: filename
@@ -58,6 +101,27 @@ def location_info(file):
 
     else:
         return ""
+
+
+def location_info(lon, lat, info='road'):
+    geolocator = Nominatim(user_agent="geoapiExercises")
+    location = geolocator.reverse(str(lat) + "," + str(lon))
+    try:
+        return location.raw['address'][info]
+    finally:
+        return None
+
+
+def read_mapbox_token(file="mapbox_token.txt"):
+    try:
+        with open(file) as f:
+            lines = f.readlines()
+            return lines[0]
+    except:
+        return ""
+
+
+mapbox_token = read_mapbox_token()
 
 
 def load(files, debug_plots=False, debug=False, csv=False):
@@ -753,8 +817,6 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
                                  mode='none',
                                  name='',
                                  showlegend=False),
-                      # row=1,
-                      # col=1
                       )
         fig.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']) + 10,
                            text="{:.1f}".format(g),

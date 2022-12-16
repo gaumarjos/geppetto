@@ -14,17 +14,7 @@ app = Dash(__name__,
            eager_loading=True,
            )
 
-
-def get_file_list(folder=TRACK_DIRECTORY):
-    l = []
-    for file in sorted(os.listdir(folder)):
-        l.append({'label': "{} {}".format(file, geppetto.location_info(TRACK_DIRECTORY + file)),
-                  'value': file,
-                  })
-    return l
-
-
-file_dropdown_list = get_file_list()
+file_dropdown_list = geppetto.scan_files(TRACK_DIRECTORY)
 
 app.layout = dbc.Container(
     children=[

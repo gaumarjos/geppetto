@@ -1,9 +1,11 @@
 # import app
 #
 # print(app.get_file_list())
+import app
+import geppetto
 
-
-
+geppetto.scan_files(app.TRACK_DIRECTORY, verbose=True)
+"""
 from geopy.geocoders import Nominatim
 import gpxpy
 
@@ -11,11 +13,6 @@ import geppetto
 
 
 def location_info(file):
-        """
-        Import a gpx file
-        :param file: filename
-        :return: location info
-        """
         gpx = gpxpy.parse(open(file, 'r'))
         lon = gpx.tracks[0].segments[0].points[0].longitude
         lat = gpx.tracks[0].segments[0].points[0].latitude
@@ -30,7 +27,7 @@ def location_info(file):
 print(geppetto.location_info("tracks/The_local_4_or_5_passes.gpx"))
 
 
-
+"""
 
 
 
