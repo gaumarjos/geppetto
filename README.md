@@ -12,15 +12,17 @@ Developed with Python 10.0.0. Install required modules with:
 
 ## Launch the app
 
-    python app.py
+Launch the web app on the server:
+
+    python geppetto.py
 
 Then open [http://localhost:8050/](http://localhost:8050/) in a web browser.
 
 ## Project structure
 
-* `app.py` is the web app
-* `geppetto.py` is where all the math is
-* `geppetto_obj.py` is an object implementation of `geppetto.py` that is not maintained because it doesn't work well
+* `geppetto.py` is the web app
+* `mate.py` is where all the math is
+* `mate_obj.py` is an object implementation of `geppetto.py` that is not maintained because it doesn't work well
   with the Dash app
 * `tracks/` is where all the `.gpx` and `.fit` files are
 
