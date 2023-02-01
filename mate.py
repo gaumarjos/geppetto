@@ -13,6 +13,10 @@ import os
 import fitdecode
 from geopy.geocoders import Nominatim
 import json
+import gzip
+import shutil
+import pyarrow.feather as feather
+from tqdm import tqdm
 
 TRACK_LIST = "tracklist.json"
 
@@ -124,108 +128,100 @@ def read_mapbox_token(file="mapbox_token.txt"):
 mapbox_token = read_mapbox_token()
 
 
-def load(files, debug_plots=False, debug=False, csv=False):
+def import_gpx(file):
     """
-    The object can load multiple gpx files at once. Useful when we want to plot multiple traces on the same map. The
-    processing is done independently using local variables and the results are then appended to a class variable.
-    All speeds are in m/s unless km/h are specified (and that can happen only in plots).
-    If multiple files are loaded, an array of Dataframes is created.
-    :param files: an array of .gpx files
-    :param debug_plots: activates debug plots
-    :param debug: verbose
-    :param csv: dumps the df dataframe into a csv
+    Import a gpx file
+    :param file: filename
+    :return: Pandas Dataframe
     """
-
     # Replacement value
     default_atemp = 26  # np.nan
 
-    def import_gpx(file):
-        """
-        Import a gpx file
-        :param file: filename
-        :return: Pandas Dataframe
-        """
-        gpx = gpxpy.parse(open(file, 'r'))
-        points = gpx.tracks[0].segments[0].points
-        local_df = pd.DataFrame(columns=['time', 'lon', 'lat', 'elev', 'atemp', 'hr', 'cad'])
+    gpx = gpxpy.parse(open(file, 'r'))
+    points = gpx.tracks[0].segments[0].points
+    local_df = pd.DataFrame(columns=['time', 'lon', 'lat', 'elev', 'atemp', 'hr', 'cad'])
 
-        # Base time if needed
-        tz = datetime.timezone(datetime.timedelta(0))
-        basetime = datetime.datetime(1900, 1, 1, 0, 0, 0, tzinfo=tz)
-        for count, point in enumerate(points):
-            # See what extension tags are there
-            atemp = None
-            hr = None
-            cad = None
-            for ext in point.extensions:
-                for extchild in list(ext):
-                    if extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}atemp":
-                        atemp = float(extchild.text)
-                    elif extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}hr":
-                        hr = float(extchild.text)
-                    elif extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}cad":
-                        cad = float(extchild.text)
-            # Add data to the df
-            local_df = pd.concat([local_df, pd.DataFrame(
-                data={'time': point.time if point.time is not None else basetime + datetime.timedelta(seconds=count),
-                      'lon': point.longitude,
-                      'lat': point.latitude,
-                      'elev': point.elevation,
-                      'atemp': atemp if atemp is not None else default_atemp,
-                      'hr': hr if hr is not None else np.nan,
-                      'cad': cad if cad is not None else np.nan,
-                      },
-                index=[0])],
-                                 axis=0,
-                                 join='outer',
-                                 ignore_index=True)
-        return local_df
+    # Base time if needed
+    tz = datetime.timezone(datetime.timedelta(0))
+    basetime = datetime.datetime(1900, 1, 1, 0, 0, 0, tzinfo=tz)
+    for count, point in enumerate(points):
+        # See what extension tags are there
+        atemp = None
+        hr = None
+        cad = None
+        for ext in point.extensions:
+            for extchild in list(ext):
+                if extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}atemp":
+                    atemp = float(extchild.text)
+                elif extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}hr":
+                    hr = float(extchild.text)
+                elif extchild.tag == "{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}cad":
+                    cad = float(extchild.text)
+        # Add data to the df
+        local_df = pd.concat([local_df, pd.DataFrame(
+            data={'time': point.time if point.time is not None else basetime + datetime.timedelta(seconds=count),
+                  'lon': point.longitude,
+                  'lat': point.latitude,
+                  'elev': point.elevation,
+                  'atemp': atemp if atemp is not None else default_atemp,
+                  'hr': hr if hr is not None else np.nan,
+                  'cad': cad if cad is not None else np.nan,
+                  },
+            index=[0])],
+                             axis=0,
+                             join='outer',
+                             ignore_index=True)
+    return local_df
 
-    def import_fit(file):
-        """
-        Import a FIT file generated from a Garmin device
-        :param file: filename
-        :return: Pandas Dataframe
 
-        Fields:
-            timestamp
-            position_lat
-            position_long
-            distance
-            enhanced_altitude
-            altitude
-            enhanced_speed
-            speed
-            unknown_87
-            cadence
-            temperature
-            fractional_cadence
-        """
+def import_fit(file):
+    """
+    Import a FIT file generated from a Garmin device
+    :param file: filename
+    :return: Pandas Dataframe
 
-        with fitdecode.FitReader(file) as fit:
+    Fields:
+        timestamp
+        position_lat
+        position_long
+        distance
+        enhanced_altitude
+        altitude
+        enhanced_speed
+        speed
+        unknown_87
+        cadence
+        temperature
+        fractional_cadence
+    """
+    # Replacement value
+    default_atemp = 26  # np.nan
 
-            local_df = pd.DataFrame(
-                columns=['time', 'lon', 'lat', 'dist', 'elev', 'enhanced_elev', 'speed', 'enhanced_speed', 'atemp',
-                         'hr', 'cad', 'fractional_cad'])
+    with fitdecode.FitReader(file) as fit:
 
-            for frame in fit:
-                if isinstance(frame, fitdecode.records.FitDataMessage):
-                    if frame.name == 'lap':
-                        # This frame contains data about a lap.
-                        '''
-                        for field in frame.fields:
-                            # field is a FieldData object
-                            print(field.name)
-                        '''
-                        pass
+        local_df = pd.DataFrame(
+            columns=['time', 'lon', 'lat', 'dist', 'elev', 'enhanced_elev', 'speed', 'enhanced_speed', 'atemp',
+                     'hr', 'cad', 'fractional_cad'])
 
-                    elif frame.name == 'record':
-                        # This frame contains data about a "track point".
-                        '''
-                        for field in frame.fields:
-                            # field is a FieldData object
-                            print(field.name)
-                        '''
+        for frame in fit:
+            if isinstance(frame, fitdecode.records.FitDataMessage):
+                if frame.name == 'lap':
+                    # This frame contains data about a lap.
+                    '''
+                    for field in frame.fields:
+                        # field is a FieldData object
+                        print(field.name)
+                    '''
+                    pass
+
+                elif frame.name == 'record':
+                    # This frame contains data about a "track point".
+                    '''
+                    for field in frame.fields:
+                        # field is a FieldData object
+                        print(field.name)
+                    '''
+                    try:
                         time = frame.get_value('timestamp', fallback=np.nan)
                         lon = float(frame.get_value('position_long', fallback=np.nan)) / ((2 ** 32) / 360)
                         lat = float(frame.get_value('position_lat', fallback=np.nan)) / ((2 ** 32) / 360)
@@ -256,8 +252,23 @@ def load(files, debug_plots=False, debug=False, csv=False):
                                              axis=0,
                                              join='outer',
                                              ignore_index=True)
+                    except:
+                        pass
 
-        return local_df
+    return local_df
+
+
+def load(files, debug_plots=False, debug=False, csv=False):
+    """
+    The object can load multiple gpx files at once. Useful when we want to plot multiple traces on the same map. The
+    processing is done independently using local variables and the results are then appended to a class variable.
+    All speeds are in m/s unless km/h are specified (and that can happen only in plots).
+    If multiple files are loaded, an array of Dataframes is created.
+    :param files: an array of .gpx files
+    :param debug_plots: activates debug plots
+    :param debug: verbose
+    :param csv: dumps the df dataframe into a csv
+    """
 
     # Create empty lists to be populated
     df_list = []  # "raw" traces
@@ -408,6 +419,79 @@ def load(files, debug_plots=False, debug=False, csv=False):
             df.to_csv("{}.csv".format(name))
 
     return df_list, df_moving_list, file_list
+
+
+def load_all(folder, unzip=True, debug_limit=0):
+    """
+    Load all gpx and fit files present in a folder (a Strava export, for example), strips all information apart from
+    latitude and longitude and stores the resulting single long dataframe in a feather file.
+    :param folder: the import folder
+    :param unzip: unzip all gz files in the folder before importing
+    :param debug_limit: if > 0, load only the first debug_limit files in alphabetical order
+    :return: nothing, it saves a feather file
+    """
+
+    # Create folder for all .gz files
+    gz_folder = os.path.join(folder, "gz")
+    if not os.path.exists(gz_folder):
+        os.makedirs(gz_folder)
+
+    # Check for .gz files, if found, expand and move the gz to that folder
+    for file in sorted(os.listdir(folder)):
+        name, extension = os.path.splitext(file)
+        if extension == ".gz":
+            with gzip.open(os.path.join(folder, file), 'rb') as f_in:
+                with open(os.path.join(folder, name), 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                    shutil.move(os.path.join(folder, file), os.path.join(gz_folder, file))
+
+    # Read all files and store lon and lat in a dataframe
+    all_df = pd.DataFrame(columns=['lon', 'lat'])
+    counter = 0
+    files = sorted(os.listdir(folder))
+    for file in tqdm(files, desc="Importing traces", ncols=100):
+        name, extension = os.path.splitext(file)
+        stripped_df = None
+        if extension == ".gpx":
+            # print("Importing '{}'...".format(file))
+            stripped_df = import_gpx(os.path.join(folder, file))[['lon', 'lat']]
+            counter = counter + 1
+        elif extension == ".fit":
+            # print("Importing '{}'...".format(file))
+            stripped_df = import_fit(os.path.join(folder, file))[['lon', 'lat']]
+            counter = counter + 1
+
+        all_df = pd.concat([all_df, stripped_df], axis=0, join='outer', ignore_index=True)
+
+        if debug_limit != 0:
+            if counter == debug_limit:
+                break
+
+    # Save dataframe in feather file
+    feather.write_feather(all_df, 'heatmap/historical')
+    return
+
+
+def historical_heatmap(file="heatmap/historical"):
+    """
+    Plots a heatmap based on data contained in a dataframe in a feather file. Filtering points by lon/lat is necessary
+    to load the map, otherwise it crashes.
+    :param file: feather file that contains a dataframe with lon and lat
+    :return:
+    """
+    all_df = feather.read_feather(file)
+
+    filtered_all_df = all_df.loc[
+        (all_df['lat'] > 44) & (all_df['lat'] < 46) & (all_df['lon'] > 10) & (all_df['lon'] < 11)]
+
+    #print(filtered_all_df)
+
+    fig = px.density_mapbox(filtered_all_df, lat='lat', lon='lon', z=None,
+                            radius=4,
+                            zoom=6,
+                            center=dict(lat=np.mean(filtered_all_df["lat"]), lon=np.mean(filtered_all_df["lon"])),
+                            mapbox_style='open-street-map')
+    fig.show()
 
 
 def stats(df, df_moving):
@@ -1227,7 +1311,7 @@ def main():
                                                    ])
         plot_maps(df_list, file_list).show()
 
-    if 1:
+    if 0:
         df_list, df_moving_list, file_list = load(["tracks/The_local_4_or_5_passes.gpx"])
         df = df_list[0]
         df_moving = df_moving_list[0]
@@ -1241,6 +1325,10 @@ def main():
         # cadence_speed_curve(df, interval=[0, 0]).show()
 
     # read_mapbox_token()
+
+    if 1:
+        # load_all("/Users/ste/Downloads/export_19724628/activities/", unzip=False, debug_limit=0)
+        historical_heatmap()
 
 
 if __name__ == "__main__":
