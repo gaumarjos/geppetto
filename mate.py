@@ -472,7 +472,7 @@ def load_all(folder, unzip=True, debug_limit=0):
     return
 
 
-def historical_heatmap(file="heatmap/historical"):
+def historical_heatmap(center_lon, center_lat, lon_span=2, lat_span=1, file="heatmap/historical"):
     """
     Plots a heatmap based on data contained in a dataframe in a feather file. Filtering points by lon/lat is necessary
     to load the map, otherwise it crashes.
@@ -482,9 +482,10 @@ def historical_heatmap(file="heatmap/historical"):
     all_df = feather.read_feather(file)
 
     filtered_all_df = all_df.loc[
-        (all_df['lat'] > 44) & (all_df['lat'] < 46) & (all_df['lon'] > 10) & (all_df['lon'] < 11)]
+        (all_df['lat'] > (center_lat - lat_span / 2)) & (all_df['lat'] < (center_lat + lat_span / 2)) & (
+                    all_df['lon'] > (center_lon - lon_span / 2)) & (all_df['lon'] < (center_lon + lon_span / 2))]
 
-    #print(filtered_all_df)
+    # print(filtered_all_df)
 
     fig = px.density_mapbox(filtered_all_df, lat='lat', lon='lon', z=None,
                             radius=4,
@@ -1328,7 +1329,7 @@ def main():
 
     if 1:
         # load_all("/Users/ste/Downloads/export_19724628/activities/", unzip=False, debug_limit=0)
-        historical_heatmap()
+        historical_heatmap(center_lon=9.5, center_lat=44.0)
 
 
 if __name__ == "__main__":
