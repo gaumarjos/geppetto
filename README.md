@@ -33,10 +33,10 @@ To plot the heatmap from previously imported activities
 ## Project structure
 
 * `geppetto.py` is the web app
+* `heatmap.py` command line interface to generate a heatmap
 * `mate.py` is where all the math is
-* `mate_obj.py` is an object implementation of `geppetto.py` that is not maintained because it doesn't work well
-  with the Dash app
 * `tracks/` is where all the `.gpx` and `.fit` files are
+* `heatmap/` where the heatmap data file is stored
 
 ## To do and known bugs
 
