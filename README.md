@@ -2,7 +2,9 @@
 
 A browser-based gpx (and fit) track analyser, great for cycling traces.
 
-![alt text](docs/screenshot.png "Screenshot")
+<img src="docs/screenshot.png"  width="1000">
+
+<img src="docs/heatmap.png"  width="600">
 
 ## Requirements
 
@@ -17,6 +19,16 @@ Launch the web app on the server:
     python geppetto.py
 
 Then open [http://localhost:8050/](http://localhost:8050/) in a web browser.
+
+## Generate a heatmap
+
+The first time (or any time you want to update the heatmap file)
+
+    python heatmap.py -f /path/to/activities --lonc 10 --latc 45
+
+To plot the heatmap from previously imported activities
+
+    python heatmap.py --lonc 10 --latc 45
 
 ## Project structure
 

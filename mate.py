@@ -421,12 +421,11 @@ def load(files, debug_plots=False, debug=False, csv=False):
     return df_list, df_moving_list, file_list
 
 
-def load_all(folder, unzip=True, debug_limit=0):
+def create_historical(folder, debug_limit=0):
     """
     Load all gpx and fit files present in a folder (a Strava export, for example), strips all information apart from
     latitude and longitude and stores the resulting single long dataframe in a feather file.
     :param folder: the import folder
-    :param unzip: unzip all gz files in the folder before importing
     :param debug_limit: if > 0, load only the first debug_limit files in alphabetical order
     :return: nothing, it saves a feather file
     """
@@ -472,10 +471,14 @@ def load_all(folder, unzip=True, debug_limit=0):
     return
 
 
-def historical_heatmap(center_lon, center_lat, lon_span=2, lat_span=1, file="heatmap/historical"):
+def plot_historical_heatmap(center_lon, center_lat, lon_span=2, lat_span=1, file="heatmap/historical"):
     """
     Plots a heatmap based on data contained in a dataframe in a feather file. Filtering points by lon/lat is necessary
     to load the map, otherwise it crashes.
+    :param center_lon: center lon coordinate of the rectangular area plotted
+    :param center_lat: center lat coordinate of the rectangular area plotted
+    :param lon_span: lon span of the rectangular area plotted
+    :param lat_span: lat span of the rectangular area plotted
     :param file: feather file that contains a dataframe with lon and lat
     :return:
     """
@@ -489,6 +492,7 @@ def historical_heatmap(center_lon, center_lat, lon_span=2, lat_span=1, file="hea
 
     fig = px.density_mapbox(filtered_all_df, lat='lat', lon='lon', z=None,
                             radius=4,
+                            opacity=0.8,
                             zoom=6,
                             center=dict(lat=np.mean(filtered_all_df["lat"]), lon=np.mean(filtered_all_df["lon"])),
                             mapbox_style='open-street-map')
@@ -981,6 +985,7 @@ def estimate_power(df,
     """
     Estimates the power over a portion of one dataframe
     :param df: dataframe to operate on
+    :param df_moving: moving avg dataframe to operate on
     :param interval_unit: can be "m" for meters or "i" for index
     :param interval: [start_meter, end_meter]
     :param total_mass: bike + rider
@@ -1241,11 +1246,11 @@ def estimate_power(df,
 
 
 def cadence_speed_curve(df,
-                        df_moving,
                         interval_unit="m",
                         interval=(0, 0)):
     """
     This method operates on only one trace
+    :param interval_unit:
     :param df: dataframe to operate on
     :param interval: [start_meter, end_meter]
     :return: plots
@@ -1327,9 +1332,9 @@ def main():
 
     # read_mapbox_token()
 
-    if 1:
-        # load_all("/Users/ste/Downloads/export_19724628/activities/", unzip=False, debug_limit=0)
-        historical_heatmap(center_lon=9.5, center_lat=44.0)
+    if 0:
+        # create_historical("/Users/ste/Downloads/export_19724628/activities/", debug_limit=0)
+        plot_historical_heatmap(center_lon=9.5, center_lat=44.0)
 
 
 if __name__ == "__main__":
