@@ -180,6 +180,13 @@ app.layout = dbc.Container(
                                                                              clearable=False,
                                                                              id='gradient_resolution'),
                                                                 dcc.Checklist(
+                                                                    id="slope_checkbox",
+                                                                    options={
+                                                                        'deg': 'Toggle % / deg',
+                                                                    },
+                                                                    value=[]
+                                                                ),
+                                                                dcc.Checklist(
                                                                     id="minimap_checkbox",
                                                                     options={
                                                                         'show': 'Show map',
@@ -443,9 +450,10 @@ def update_elevation_graph(jsonified_df):  # , hoverData):
     Input('store_df', 'data'),
     Input('elevation_graph', 'selectedData'),
     Input('gradient_resolution', 'value'),
+    Input('slope_checkbox', 'value'),
     Input('minimap_checkbox', 'value'),
 )
-def update_gradient(jsonified_df, selected_points, gradient_resolution, minimap_checkbox):
+def update_gradient(jsonified_df, selected_points, gradient_resolution, slope_checkbox, minimap_checkbox):
     if jsonified_df is not None:
         df = pd.read_json(jsonified_df, orient='split')
         if selected_points is not None:
@@ -455,12 +463,14 @@ def update_gradient(jsonified_df, selected_points, gradient_resolution, minimap_
                                 interval=[min(selected_indexes), max(selected_indexes)] if len(
                                     selected_indexes) > 0 else [0, 0],
                                 resolution=int(gradient_resolution) if gradient_resolution is not None else 1000,
+                                slope_unit="deg" if "deg" in slope_checkbox else "per",
                                 show_map=True if "show" in minimap_checkbox else False)
         else:
             fig = mate.gradient(df=df,
                                 interval_unit="i",
                                 interval=[0, 0],
-                                resolution=1000)
+                                resolution=1000,
+                                slope_unit="deg" if "deg" in slope_checkbox else "per")
 
         return fig
 

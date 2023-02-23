@@ -779,13 +779,14 @@ def plot_elevation(df, hover_index=None):
     return fig
 
 
-def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=False):
+def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, slope_unit="per", show_map=False):
     """
     Computes the gradient over a portion of one dataframe
     :param df: dataframe to operate on
     :param interval_unit: can be "m" for meters or "i" for index
     :param interval: the gradient is calculated over the portion [start_meter, end_meter] of the input trace
-    :param resolution: the "step" in which the gradient tis calculated/averaged, in meters
+    :param resolution: the "step" in which the gradient is calculated/averaged, in meters
+    :param slope_unit: show slope as percentage ("per") or angle ("deg")
     :param show_map: show a minimap in the bottom right corner
     :return: a figure
     """
@@ -887,7 +888,7 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
     df_climb_gradient = df_climb[df_climb['c_dist_geo2d_neg'].isin(steps)].copy()
     df_climb_gradient['c_elev_delta'] = df_climb_gradient.elev.diff().shift(-1)
     df_climb_gradient['c_dist_delta'] = df_climb_gradient.c_dist_geo2d_neg.diff().shift(-1)
-    df_climb_gradient['c_gradient'] = df_climb_gradient['c_elev_delta'] / df_climb_gradient['c_dist_delta'] * 100
+    df_climb_gradient['c_gradient'] = df_climb_gradient['c_elev_delta'] / df_climb_gradient['c_dist_delta']
 
     # This columns is redundant but is useful to cross check that the filter worked well
     # df_climb_gradient['steps'] = np.flip(steps)
@@ -898,7 +899,8 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
         portion = df_climb[
             (df_climb['c_dist_geo2d_neg'] >= df_climb_gradient.iloc[i]["c_dist_geo2d_neg"]) & (
                     df_climb['c_dist_geo2d_neg'] <= df_climb_gradient.iloc[i + 1]["c_dist_geo2d_neg"])]
-        g = df_climb_gradient['c_gradient'].iloc[i]
+        g = df_climb_gradient['c_gradient'].iloc[i] * 100
+        angle = np.arctan(g) / (2*np.pi) * 180
         fig.add_trace(go.Scatter(x=portion['c_dist_geo2d_neg'],
                                  y=portion['elev'],
                                  fill='tozeroy',
@@ -908,7 +910,7 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, show_map=F
                                  showlegend=False),
                       )
         fig.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']) + 10,
-                           text="{:.1f}".format(g),
+                           text="{:.1f}%".format(g) if slope_unit == "per" else "{:.1f}°".format(angle),
                            showarrow=True,
                            arrowhead=0)
 
