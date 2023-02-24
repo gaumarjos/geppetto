@@ -813,7 +813,7 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, slope_unit
         red = np.append(half_n * [255], np.linspace(255, 0, (half_n + 1)))
         green = np.append(np.linspace(0, 255, (half_n + 1)), half_n * [255])
         blue = (2 * half_n + 1) * [0]
-        bin_index = np.digitize(gradient_value, a)
+        bin_index = np.digitize(gradient_value * 100, a)
         return "rgb({},{},{})".format(int(red[bin_index]), int(green[bin_index]), int(blue[bin_index]))
 
     # Create a local copy of the input array of dataframes containing only the points belonging to the portion,
@@ -899,8 +899,8 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, slope_unit
         portion = df_climb[
             (df_climb['c_dist_geo2d_neg'] >= df_climb_gradient.iloc[i]["c_dist_geo2d_neg"]) & (
                     df_climb['c_dist_geo2d_neg'] <= df_climb_gradient.iloc[i + 1]["c_dist_geo2d_neg"])]
-        g = df_climb_gradient['c_gradient'].iloc[i] * 100
-        angle = np.arctan(g) / (2*np.pi) * 180
+        g = df_climb_gradient['c_gradient'].iloc[i]
+        angle = np.arctan(g) / np.pi * 180
         fig.add_trace(go.Scatter(x=portion['c_dist_geo2d_neg'],
                                  y=portion['elev'],
                                  fill='tozeroy',
@@ -910,7 +910,7 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, slope_unit
                                  showlegend=False),
                       )
         fig.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']) + 10,
-                           text="{:.1f}%".format(g) if slope_unit == "per" else "{:.1f}°".format(angle),
+                           text="{:.1f}%".format(g*100) if slope_unit == "per" else "{:.1f}°".format(angle),
                            showarrow=True,
                            arrowhead=0)
 
