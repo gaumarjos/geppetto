@@ -18,6 +18,8 @@ import shutil
 import pyarrow.feather as feather
 from tqdm import tqdm
 
+import geppetto
+
 TRACK_LIST = "tracklist.json"
 
 
@@ -486,7 +488,7 @@ def plot_historical_heatmap(center_lon, center_lat, lon_span=2, lat_span=1, file
 
     filtered_all_df = all_df.loc[
         (all_df['lat'] > (center_lat - lat_span / 2)) & (all_df['lat'] < (center_lat + lat_span / 2)) & (
-                    all_df['lon'] > (center_lon - lon_span / 2)) & (all_df['lon'] < (center_lon + lon_span / 2))]
+                all_df['lon'] > (center_lon - lon_span / 2)) & (all_df['lon'] < (center_lon + lon_span / 2))]
 
     # print(filtered_all_df)
 
@@ -910,7 +912,7 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, slope_unit
                                  showlegend=False),
                       )
         fig.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']) + 10,
-                           text="{:.1f}%".format(g*100) if slope_unit == "per" else "{:.1f}°".format(angle),
+                           text="{:.1f}%".format(g * 100) if slope_unit == "per" else "{:.1f}°".format(angle),
                            showarrow=True,
                            arrowhead=0)
 
@@ -1299,6 +1301,45 @@ def cadence_speed_curve(df,
     return fig
 
 
+def combine(folder, elements):
+    """
+    Combine intervals of a list of tracks into one single track
+    :param list_of_tracks: list of (file, interval)
+    :return:
+    """
+
+    # Read all files and store lon and lat in a dataframe
+    all_df = pd.DataFrame(columns=['lon', 'lat', 'elev', 'c_dist_geo2d'])
+    for element in tqdm(elements, desc="Importing traces", ncols=100):
+        df_list, _, _ = load([os.path.join(folder, element["file"])])
+        df = df_list[0]
+        df_selection = copy_segment(df,
+                                    columns=['lon', 'lat', 'elev', 'c_dist_geo2d'],
+                                    interval=element["interval"])
+        all_df = pd.concat([all_df, df_selection], axis=0, join='outer', ignore_index=True)
+
+    # Save into a gpx
+    gpx = gpxpy.gpx.GPX()
+
+    # Create first track in our GPX:
+    gpx_track = gpxpy.gpx.GPXTrack()
+    gpx.tracks.append(gpx_track)
+
+    # Create first segment in our GPX track:
+    gpx_segment = gpxpy.gpx.GPXTrackSegment()
+    gpx_track.segments.append(gpx_segment)
+
+    # Create points:
+    for index, row in all_df.iterrows():
+        gpx_segment.points.append(gpxpy.gpx.GPXTrackPoint(latitude=row['lat'],
+                                                          longitude=row['lon'],
+                                                          elevation=row['elev']))
+
+    # Save file
+    with open(os.path.join(folder, 'output.gpx'), 'w') as f:
+        f.write(gpx.to_xml())
+
+
 def main():
     """
     Main function
@@ -1337,6 +1378,18 @@ def main():
     if 0:
         # create_historical("/Users/ste/Downloads/export_19724628/activities/", debug_limit=0)
         plot_historical_heatmap(center_lon=9.5, center_lat=44.0)
+
+    if 1:
+        combine("/Users/ste/Library/CloudStorage/Dropbox/Cose divertenti/Sport/Trail/Parma/UKT 70km 2022.gpx",
+                (
+                    {'file': "UKT 70km 2022.gpx",
+                     'interval': (4200, 11100)},
+                    {'file': "Caio 21.gpx",
+                     'interval': (10, 20)},
+                    {'file': "UKT 70km 2022.gpx",
+                     'interval': (20, 30)},
+                )
+                )
 
 
 if __name__ == "__main__":
