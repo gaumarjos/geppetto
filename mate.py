@@ -18,8 +18,6 @@ import shutil
 import pyarrow.feather as feather
 from tqdm import tqdm
 
-import geppetto
-
 TRACK_LIST = "tracklist.json"
 
 
@@ -600,27 +598,23 @@ def copy_segment(df, columns, interval_unit="m", interval=(0, 0)):
     :return:
     """
     # Select only the points belonging to the climb
-    assert interval[0] >= 0
-    assert interval[1] >= 0
     assert interval_unit in ("m", "i")
 
     # Create copy to avoid warnings and confusion
     df_segment = df[columns].copy()
 
-    # Selection in case of meter interval
-    if interval_unit == "m":
-        if interval[1] == 0:
-            df_segment = df_segment[df_segment["c_dist_geo2d"] >= interval[0]]
-        else:
-            df_segment = df_segment[
-                (df_segment["c_dist_geo2d"] >= interval[0]) & (df_segment["c_dist_geo2d"] <= interval[1])]
+    # Copy the whole segment
+    if interval is not None:
 
-    # Selection in case of index interval
-    elif interval_unit == "i":
-        if interval[1] == 0:
-            df_segment = df_segment.iloc[interval[0]:]
-        else:
+        # Selection in case of meter interval
+        if interval_unit == "m":
+            df_segment = df_segment[
+                    (df_segment["c_dist_geo2d"] >= interval[0]) & (df_segment["c_dist_geo2d"] <= interval[1])]
+
+        # Selection in case of index interval
+        elif interval_unit == "i":
             df_segment = df_segment.iloc[interval[0]:interval[1]]
+
     return df_segment
 
 

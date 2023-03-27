@@ -394,14 +394,14 @@ def update_map(jsonified_df, selected_points, map_trace_color, hoverData, zoom):
                                 map_trace_color_param=map_trace_color,
                                 interval_unit="i",
                                 interval=[min(selected_indexes), max(selected_indexes)] if len(
-                                    selected_indexes) > 0 else [0, 0],
+                                    selected_indexes) > 0 else None,
                                 hover_index=hover_index,
                                 zoom=zoom)
         else:
             fig = mate.plot_map(df=df,
                                 map_trace_color_param=map_trace_color,
                                 interval_unit="i",
-                                interval=[0, 0],
+                                interval=None,
                                 hover_index=hover_index,
                                 zoom=zoom)
 
@@ -461,14 +461,14 @@ def update_gradient(jsonified_df, selected_points, gradient_resolution, slope_ch
             fig = mate.gradient(df=df,
                                 interval_unit="i",
                                 interval=[min(selected_indexes), max(selected_indexes)] if len(
-                                    selected_indexes) > 0 else [0, 0],
+                                    selected_indexes) > 0 else None,
                                 resolution=int(gradient_resolution) if gradient_resolution is not None else 1000,
                                 slope_unit="deg" if "deg" in slope_checkbox else "per",
                                 show_map=True if "show" in minimap_checkbox else False)
         else:
             fig = mate.gradient(df=df,
                                 interval_unit="i",
-                                interval=[0, 0],
+                                interval=None,
                                 resolution=1000,
                                 slope_unit="deg" if "deg" in slope_checkbox else "per")
 
@@ -492,14 +492,14 @@ def update_power(jsonified_df, jsonified_df_moving, selected_points, power_filte
                                       df_moving=df_moving,
                                       interval_unit="i",
                                       interval=[min(selected_indexes), max(selected_indexes)] if len(
-                                          selected_indexes) > 0 else [0, 0],
+                                          selected_indexes) > 0 else None,
                                       filter_window=int(
                                           power_filter_slider) if power_filter_slider is not None else 0)
         else:
             fig = mate.estimate_power(df=df,
                                       df_moving=df_moving,
                                       interval_unit="i",
-                                      interval=[0, 0],
+                                      interval=None,
                                       filter_window=int(
                                           power_filter_slider) if power_filter_slider is not None else 0)
 
