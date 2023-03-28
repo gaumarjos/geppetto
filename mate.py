@@ -144,7 +144,9 @@ def import_gpx(file):
     # Base time if needed
     tz = datetime.timezone(datetime.timedelta(0))
     basetime = datetime.datetime(1900, 1, 1, 0, 0, 0, tzinfo=tz)
-    for count, point in enumerate(points):
+
+    for count, point in enumerate(
+            tqdm(points, desc="Importing gpx \"{}\"".format(os.path.basename(file)[:6]), ncols=80)):
         # See what extension tags are there
         atemp = None
         hr = None
@@ -203,7 +205,7 @@ def import_fit(file):
             columns=['time', 'lon', 'lat', 'dist', 'elev', 'enhanced_elev', 'speed', 'enhanced_speed', 'atemp',
                      'hr', 'cad', 'fractional_cad'])
 
-        for frame in fit:
+        for frame in tqdm(fit, desc="Importing fit \"{}\"".format(os.path.basename(file)[:6]), ncols=80):
             if isinstance(frame, fitdecode.records.FitDataMessage):
                 if frame.name == 'lap':
                     # This frame contains data about a lap.
@@ -314,7 +316,7 @@ def load(files, debug_plots=False, debug=False, csv=False):
         c_dist_geo2d = [0]  # cumulative distance from geodesic method only
         c_dist_geo3d = [0]  # cumulative distance from geodesic method, adjusted for elevation
 
-        for idx in range(1, len(df)):
+        for idx in tqdm(range(1, len(df)), desc="Pre-processing \"{}\"".format(os.path.basename(file)[:6]), ncols=80):
             start = df.iloc[idx - 1]
             end = df.iloc[idx]
 
@@ -366,8 +368,9 @@ def load(files, debug_plots=False, debug=False, csv=False):
         df = df[df['c_speed'] < 80.0 / 3.6]
 
         # Check and fill nan's
-        if df.isna().sum().sum() > 1:
-            print("Warning: too many NaN's")
+        if debug:
+            if df.isna().sum().sum() > 1:
+                print("Warning: too many NaN's")
         df.fillna(0, inplace=True)
 
         # Look at c_delta_geo3d and c_delta_time over time and see if everything makes sense
@@ -448,15 +451,13 @@ def create_historical(folder, debug_limit=0):
     all_df = pd.DataFrame(columns=['lon', 'lat'])
     counter = 0
     files = sorted(os.listdir(folder))
-    for file in tqdm(files, desc="Importing traces", ncols=100):
+    for file in tqdm(files, desc="Importing traces", ncols=80):
         name, extension = os.path.splitext(file)
         stripped_df = None
         if extension == ".gpx":
-            # print("Importing '{}'...".format(file))
             stripped_df = import_gpx(os.path.join(folder, file))[['lon', 'lat']]
             counter = counter + 1
         elif extension == ".fit":
-            # print("Importing '{}'...".format(file))
             stripped_df = import_fit(os.path.join(folder, file))[['lon', 'lat']]
             counter = counter + 1
 
@@ -587,7 +588,7 @@ def plot_maps(df_list, file_list):
     return fig
 
 
-def copy_segment(df, columns, interval_unit="m", interval=(0, 0)):
+def copy_segment(df, columns, interval_unit="m", interval=None):
     """
     Return a portion of one dataframe
     :param df: dataframe to operate on
@@ -601,24 +602,33 @@ def copy_segment(df, columns, interval_unit="m", interval=(0, 0)):
     assert interval_unit in ("m", "i")
 
     # Create copy to avoid warnings and confusion
-    df_segment = df[columns].copy()
+    copy_df = df[columns].copy()
 
-    # Copy the whole segment
     if interval is not None:
-
-        # Selection in case of meter interval
+        # Selection in case of meter interval (used manually, need for "loop" behavior)
         if interval_unit == "m":
-            df_segment = df_segment[
-                    (df_segment["c_dist_geo2d"] >= interval[0]) & (df_segment["c_dist_geo2d"] <= interval[1])]
+            max_dist = df['c_dist_geo2d'].max()
+            min_dist = df['c_dist_geo2d'].min()
+            start_dist = interval[0]
+            if interval[1] == 0:
+                end_dist = max_dist
+            else:
+                end_dist = interval[1]
 
-        # Selection in case of index interval
+            result_df = copy_df[(copy_df['c_dist_geo2d'] >= start_dist) & (copy_df['c_dist_geo2d'] <= end_dist)]
+
+        # Selection in case of index interval (used by geppetto and based on selection, no need for "loop" behavior)
         elif interval_unit == "i":
-            df_segment = df_segment.iloc[interval[0]:interval[1]]
+            result_df = copy_df.iloc[interval[0]:interval[1]]
 
-    return df_segment
+        return result_df
+
+    else:
+        # Copy the whole segment
+        return copy_df
 
 
-def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=(0, 0), hover_index=None, zoom=None):
+def plot_map(df, map_trace_color_param='elev', interval_unit="m", interval=None, hover_index=None, zoom=None):
     """
 
     :param df: dataframe to operate on
@@ -775,7 +785,7 @@ def plot_elevation(df, hover_index=None):
     return fig
 
 
-def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, slope_unit="per", show_map=False):
+def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="per", show_map=False):
     """
     Computes the gradient over a portion of one dataframe
     :param df: dataframe to operate on
@@ -976,7 +986,7 @@ def gradient(df, interval_unit="m", interval=(0, 0), resolution=1000, slope_unit
 def estimate_power(df,
                    df_moving,
                    interval_unit="m",
-                   interval=(0, 0),
+                   interval=None,
                    total_mass=76 + 1 + 1.5 + 8,
                    filter_window=4,
                    debug_plots=False):
@@ -1050,7 +1060,7 @@ def estimate_power(df,
                                 interval_unit=interval_unit,
                                 interval=interval)
     df_moving_selection = copy_segment(df_moving,
-                                       columns=["c_delta_time", "c_speed"],
+                                       columns=['c_delta_time', 'c_speed', 'c_dist_geo2d'],
                                        interval_unit=interval_unit,
                                        interval=interval)
 
@@ -1245,7 +1255,7 @@ def estimate_power(df,
 
 def cadence_speed_curve(df,
                         interval_unit="m",
-                        interval=(0, 0)):
+                        interval=None):
     """
     This method operates on only one trace
     :param interval_unit:
@@ -1304,12 +1314,14 @@ def combine(folder, elements):
 
     # Read all files and store lon and lat in a dataframe
     all_df = pd.DataFrame(columns=['lon', 'lat', 'elev', 'c_dist_geo2d'])
-    for element in tqdm(elements, desc="Importing traces", ncols=100):
-        df_list, _, _ = load([os.path.join(folder, element["file"])])
+    for element in elements:
+        print("Importing \"{}\" from {} to {}m".format(element['file'], element['interval'][0], element['interval'][1]))
+        df_list, _, _ = load([os.path.join(folder, element['file'])])
         df = df_list[0]
         df_selection = copy_segment(df,
                                     columns=['lon', 'lat', 'elev', 'c_dist_geo2d'],
-                                    interval=element["interval"])
+                                    interval=element['interval'])
+
         all_df = pd.concat([all_df, df_selection], axis=0, join='outer', ignore_index=True)
 
     # Save into a gpx
@@ -1330,13 +1342,13 @@ def combine(folder, elements):
                                                           elevation=row['elev']))
 
     # Save file
-    with open(os.path.join(folder, 'output.gpx'), 'w') as f:
+    with open(os.path.join(folder, 'combined.gpx'), 'w') as f:
         f.write(gpx.to_xml())
 
 
 def main():
     """
-    Main function
+    Main function, used to test individual functions
     :return: nothing
     """
 
@@ -1355,15 +1367,17 @@ def main():
         plot_maps(df_list, file_list).show()
 
     if 0:
-        df_list, df_moving_list, file_list = load(["tracks/The_local_4_or_5_passes.gpx"])
+        # df_list, df_moving_list, file_list = load(["tracks/Caio 21.gpx"])
+        df_list, df_moving_list, file_list = load(["tracks/The_missing_pass_W3_D2_.gpx"])
+
         df = df_list[0]
         df_moving = df_moving_list[0]
 
         # print(stats(df, df_moving))
         # plot_map(df).show()
         # plot_elevation(df).show()
-        gradient(df, interval=[33739, 34000], resolution=500).show()
-        # estimate_power(df, interval=[0, 0]).show()
+        # gradient(df, interval=[33739, 34000], resolution=500).show()
+        # estimate_power(df, df_moving, interval=None).show()
         # speed_cadence_timeseries(df, interval=[0, 0]).show()
         # cadence_speed_curve(df, interval=[0, 0]).show()
 
@@ -1373,16 +1387,25 @@ def main():
         # create_historical("/Users/ste/Downloads/export_19724628/activities/", debug_limit=0)
         plot_historical_heatmap(center_lon=9.5, center_lat=44.0)
 
-    if 1:
-        combine("/Users/ste/Library/CloudStorage/Dropbox/Cose divertenti/Sport/Trail/Parma/UKT 70km 2022.gpx",
-                (
-                    {'file': "UKT 70km 2022.gpx",
-                     'interval': (4200, 11100)},
-                    {'file': "Caio 21.gpx",
-                     'interval': (10, 20)},
-                    {'file': "UKT 70km 2022.gpx",
-                     'interval': (20, 30)},
-                )
+    if 0:
+        prova1 = (
+            {'file': "UltraK_Trail_104km_6200m_d_9th_of_48_starters_25_finishers.gpx",
+             'interval': (4200, 11100)},
+            {'file': "Caio 21.gpx",
+             'interval': (5800, 0)},
+            {'file': "Caio 21.gpx",
+             'interval': (0, 7400)},
+            {'file': "UltraK_Trail_104km_6200m_d_9th_of_48_starters_25_finishers.gpx",
+             'interval': (19700, 24800)},
+        )
+        prova2 = (
+            {'file': "Caio 21.gpx",
+             'interval': (5800, 0)},
+            {'file': "Caio 21.gpx",
+             'interval': (0, 7400)},
+        )
+        combine("/Users/ste/Library/CloudStorage/Dropbox/Cose divertenti/Sport/Trail/Parma/",
+                prova2
                 )
 
 

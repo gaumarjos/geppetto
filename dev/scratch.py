@@ -1,10 +1,37 @@
 # import app
 #
 # print(app.get_file_list())
-import app
-import geppetto
+#import mate
+#import geppetto
 
-geppetto.scan_files(app.TRACK_DIRECTORY, verbose=True)
+
+print(-30 % 120)
+print(124 % 120)
+
+
+import pandas as pd
+import numpy as np
+
+# create a list of 120 numbers ranging from 0 to 119
+c_dist_geo2d_values = list(range(120))
+
+# create a dataframe with one column named "c_dist_geo2d"
+df = pd.DataFrame({'c_dist_geo2d': c_dist_geo2d_values})
+
+# print the dataframe
+print(df)
+
+print(df.iloc[-1:10])
+
+
+a = np.arange(0, 120)
+print(a)
+print(a[-30:110])
+
+
+
+
+#geppetto.scan_files(app.TRACK_DIRECTORY, verbose=True)
 """
 from geopy.geocoders import Nominatim
 import gpxpy
