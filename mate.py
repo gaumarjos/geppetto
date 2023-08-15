@@ -822,6 +822,13 @@ def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="
         bin_index = np.digitize(gradient_value * 100, a)
         return "rgb({},{},{})".format(int(red[bin_index]), int(green[bin_index]), int(blue[bin_index]))
 
+    # function to convert to superscript
+    def get_super(x):
+        normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-=()"
+        super_s = "ᴬᴮᶜᴰᴱᶠᴳᴴᴵᴶᴷᴸᴹᴺᴼᴾQᴿˢᵀᵁⱽᵂˣʸᶻᵃᵇᶜᵈᵉᶠᵍʰᶦʲᵏˡᵐⁿᵒᵖ۹ʳˢᵗᵘᵛʷˣʸᶻ⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾"
+        res = x.maketrans(''.join(normal), ''.join(super_s))
+        return x.translate(res)
+
     # Create a local copy of the input array of dataframes containing only the points belonging to the portion,
     # usually a climb, of interest
     df_climb = copy_segment(df,
@@ -915,9 +922,11 @@ def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="
                                  name='',
                                  showlegend=False),
                       )
-        fig.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']) + 10,
-                           text="{:.1f}%".format(g * 100) if slope_unit == "per" else "{:.1f}°".format(angle),
-                           showarrow=True,
+        annotation_per = "{:.0f}".format(np.trunc(g * 100)) + "{}".format(get_super("{:.0f}".format(np.trunc(((g * 100) % 1) * 10))))
+        annotation_deg = "{:.0f}".format(np.trunc(angle * 100)) + "{}".format(get_super("{:.0f}".format(np.trunc(((angle * 100) % 1) * 10))))
+        fig.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']), yshift=10,
+                           text=annotation_per if slope_unit == "per" else annotation_deg,
+                           showarrow=False,
                            arrowhead=0)
 
     # Minimap
