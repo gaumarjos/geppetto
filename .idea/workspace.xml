@@ -6,7 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="de16e542-92d0-4201-b9c7-0ce933c02bb6" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dev/scratch.py" beforeDir="false" afterPath="$PROJECT_DIR$/dev/scratch.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mate.py" beforeDir="false" afterPath="$PROJECT_DIR$/mate.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tracklist.json" beforeDir="false" afterPath="$PROJECT_DIR$/tracklist.json" afterDir="false" />
     </list>
@@ -45,12 +44,11 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">
-    <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
-    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
-    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
-  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "last_opened_file_path": "/Users/ste/PycharmProjects/geppetto"
+  }
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
