@@ -19,6 +19,7 @@ import pyarrow.feather as feather
 from tqdm import tqdm
 
 TRACK_LIST = "tracklist.json"
+LAST_TRACK = "lasttrack.json"
 
 
 def scan_files(folder, verbose=False):
@@ -113,6 +114,36 @@ def location_info(lon, lat, info='road'):
     try:
         return location.raw['address'][info]
     finally:
+        return None
+
+def save_last_opened(file):
+    """
+    Store the name of the last opened track in a json
+    :param file:
+    :return:
+    """
+    with open(LAST_TRACK, "w") as json_file:
+        info = {"last": file}
+        json.dump(info, json_file, indent=4)
+    return
+
+
+def return_last_opened(verbose=False):
+    """
+    Return the name of the last opened track
+    :param verbose:
+    :return:
+    """
+    if os.path.exists(LAST_TRACK):
+        if verbose:
+            print("Opening last opened trace.")
+        with open(LAST_TRACK, "r") as json_file:
+            # Extract list from json
+            data_in_json = json.load(json_file)
+            return data_in_json["last"]
+    else:
+        if verbose:
+            print("No last track saved.")
         return None
 
 

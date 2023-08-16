@@ -31,7 +31,7 @@ app.layout = dbc.Container(
                             [
                                 dcc.Dropdown(
                                     file_dropdown_list,
-                                    file_dropdown_list[0]['value'],
+                                    mate.return_last_opened() if mate.return_last_opened() is not None else file_dropdown_list[0]['value'],
                                     id='imported_files',
                                     searchable=True,
                                     clearable=False,
@@ -348,6 +348,7 @@ app.layout = dbc.Container(
 def load_trace(filename):
     # Load trace
     if filename is not None:
+        mate.save_last_opened(filename)
         df_list, df_moving_list, _ = mate.load([TRACK_DIRECTORY + filename])
         df = df_list[0]
         df_moving = df_moving_list[0]
