@@ -6,7 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="de16e542-92d0-4201-b9c7-0ce933c02bb6" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lasttrack.json" beforeDir="false" afterPath="$PROJECT_DIR$/lasttrack.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mate.py" beforeDir="false" afterPath="$PROJECT_DIR$/mate.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tracklist.json" beforeDir="false" afterPath="$PROJECT_DIR$/tracklist.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,11 +45,12 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;last_opened_file_path&quot;: &quot;/Users/ste/PycharmProjects/geppetto&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "last_opened_file_path": "/Users/ste/PycharmProjects/geppetto"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />

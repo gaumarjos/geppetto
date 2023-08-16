@@ -1,5 +1,9 @@
 [
     {
+        "label": ".DS_Store ",
+        "value": ".DS_Store"
+    },
+    {
         "label": "Autumnal_chestnut_trees_Cisa_and_Brattello.gpx (Sala Baganza, Parma, Emilia-Romagna)",
         "value": "Autumnal_chestnut_trees_Cisa_and_Brattello.gpx"
     },
@@ -12,7 +16,7 @@
         "value": "CaCa.gpx"
     },
     {
-        "label": "Casarola_canale_dalla_cima_.gpx (Succiso, Succiso Nuovo, Ventasso, Reggio nell'Emilia, Emilia-Romagna)",
+        "label": "Casarola_canale_dalla_cima_.gpx ",
         "value": "Casarola_canale_dalla_cima_.gpx"
     },
     {
@@ -20,7 +24,7 @@
         "value": "Cisa_e_Cirone.gpx"
     },
     {
-        "label": "Col_d_Izoard.gpx (Molines-en-Queyras, Brian\u00e7on, Hautes-Alpes, Provence-Alpes-C\u00f4te d'Azur)",
+        "label": "Col_d_Izoard.gpx ",
         "value": "Col_d_Izoard.gpx"
     },
     {
@@ -28,7 +32,7 @@
         "value": "Col_de_la_Bonette_2802m_chased_by_butterflies_and_greeted_by_marmots_.gpx"
     },
     {
-        "label": "Colle_dell_Agnello_from_Chianale_snow_on_the_face_on_the_way_up.gpx (Pontechianale, Cuneo, Piemonte)",
+        "label": "Colle_dell_Agnello_from_Chianale_snow_on_the_face_on_the_way_up.gpx ",
         "value": "Colle_dell_Agnello_from_Chianale_snow_on_the_face_on_the_way_up.gpx"
     },
     {
@@ -40,7 +44,11 @@
         "value": "Even_more_local_passes.gpx"
     },
     {
-        "label": "Le_g_ant_de_Provence_Mont_Ventoux_.gpx (Mazan, Carpentras, Vaucluse, Provence-Alpes-C\u00f4te d'Azur)",
+        "label": "Fragno.gpx ",
+        "value": "Fragno.gpx"
+    },
+    {
+        "label": "Le_g_ant_de_Provence_Mont_Ventoux_.gpx ",
         "value": "Le_g_ant_de_Provence_Mont_Ventoux_.gpx"
     },
     {
@@ -52,7 +60,7 @@
         "value": "Local_passes_gravel_edition_W2_D2_.fit"
     },
     {
-        "label": "More_and_more_local_passes_W19_D3_.gpx (Collagna, Ventasso, Reggio nell'Emilia, Emilia-Romagna)",
+        "label": "More_and_more_local_passes_W19_D3_.gpx ",
         "value": "More_and_more_local_passes_W19_D3_.gpx"
     },
     {
@@ -84,7 +92,7 @@
         "value": "The_missing_pass_W3_D2_.gpx"
     },
     {
-        "label": "Tre croci.gpx (Buco del Signore, Reggio nell'Emilia, Emilia-Romagna)",
+        "label": "Tre croci.gpx ",
         "value": "Tre croci.gpx"
     },
     {

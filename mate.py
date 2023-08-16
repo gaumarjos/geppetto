@@ -87,8 +87,12 @@ def file_location_info(file):
         lon = gpx.tracks[0].segments[0].points[0].longitude
         lat = gpx.tracks[0].segments[0].points[0].latitude
 
-        geolocator = Nominatim(user_agent="geoapiExercises")
-        location = geolocator.reverse(str(lat) + "," + str(lon))
+        try:
+            geolocator = Nominatim(user_agent="geoapiExercises")
+            location = geolocator.reverse(str(lat) + "," + str(lon))
+        except:
+            print("Error: Geolocator not working!")
+            return ""
 
         # return location.raw["display_name"]
         interesting_keys = ('suburb', 'village', 'municipality', 'county', 'state')
@@ -795,9 +799,11 @@ def plot_elevation(df, hover_index=None):
 
     fig.update_xaxes(showgrid=True,
                      showspikes=True,
-                     title="2D distance (m)")
+                     title="2D distance (m)",
+                     gridcolor='#999999')
     fig.update_yaxes(showgrid=True,
-                     title="Altitude (m)")
+                     title="Altitude (m)",
+                     gridcolor='#999999')
     fig.add_annotation(x=0.02, y=0.85, xanchor='left', yanchor='bottom',
                        xref='paper', yref='paper', showarrow=False, align='left',
                        text="Elevation")
@@ -811,6 +817,7 @@ def plot_elevation(df, hover_index=None):
                           color="Gray",
                       ),
                       paper_bgcolor='rgba(0,0,0,0)',
+                      plot_bgcolor='rgba(0,0,0,0)',
                       )
 
     return fig
@@ -1046,7 +1053,9 @@ def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="
                           color="Gray",
                       ),
                       paper_bgcolor='rgba(0,0,0,0)',
+                      plot_bgcolor='rgba(0,0,0,0)',
                       )
+    fig.update_yaxes(gridcolor='#999999')
     return fig
 
 
@@ -1250,34 +1259,39 @@ def estimate_power(df,
                      secondary_y=False,
                      showgrid=True,
                      showspikes=True,
-                     title="Power (W)")
+                     title="Power (W)",
+                     gridcolor='#999999')
 
     fig.update_yaxes(row=1,
                      col=1,
                      secondary_y=True,
                      showgrid=True,
                      showspikes=True,
-                     title="HR (bpm)")
+                     title="HR (bpm)",
+                     gridcolor='#990000')
 
     fig.update_yaxes(row=2,
                      col=1,
                      secondary_y=False,
                      showgrid=True,
                      showspikes=True,
-                     title="Speed (km/h)")
+                     title="Speed (km/h)",
+                     gridcolor='#000099')
 
     fig.update_yaxes(row=2,
                      col=1,
                      secondary_y=True,
                      showgrid=True,
                      showspikes=True,
-                     title="Cadence (rpm)")
+                     title="Cadence (rpm)",
+                     gridcolor='#999999')
 
     fig.update_xaxes(row=2,
                      col=1,
                      showgrid=True,
                      showspikes=True,
-                     title="2D distance (m)")
+                     title="2D distance (m)",
+                     gridcolor='#999999')
 
     # Power annotation
     fig.add_annotation(x=0.00, y=0.50, xanchor='left', yanchor='bottom',
@@ -1316,6 +1330,7 @@ def estimate_power(df,
                           color="Gray",
                       ),
                       paper_bgcolor='rgba(0,0,0,0)',
+                      plot_bgcolor='rgba(0,0,0,0)',
                       )
     return fig
 
