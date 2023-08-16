@@ -949,7 +949,8 @@ def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="
                                  y=portion['elev'],
                                  fill='tozeroy',
                                  fillcolor=gradient_colorscale(g),
-                                 mode='none',
+                                 mode='lines',
+                                 line=dict(color="#000000", width=1),
                                  name='',
                                  showlegend=False),
                       )
@@ -958,7 +959,33 @@ def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="
         fig.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']), yshift=10,
                            text=annotation_per if slope_unit == "per" else annotation_deg,
                            showarrow=False,
-                           arrowhead=0)
+                           arrowhead=0,
+                           font=dict(
+                               color="black",
+                           ),
+                           )
+        if i == 0:
+            fig.add_annotation(x=np.min(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']), yshift=40,
+                               text="{:.0f}m".format(np.min(portion['elev'])),
+                               textangle=270,
+                               showarrow=False,
+                               arrowhead=0,
+                               font=dict(
+                                   color="black",
+                                   size=12,
+                               ),
+                               )
+        elif i == (len(df_climb_gradient) - 2):
+            fig.add_annotation(x=np.max(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']), yshift=40,
+                               text="{:.0f}m".format(np.max(portion['elev'])),
+                               textangle=270,
+                               showarrow=False,
+                               arrowhead=0,
+                               font=dict(
+                                   color="black",
+                                   size=12,
+                               ),
+                               )
 
     # Minimap
     if show_map:
