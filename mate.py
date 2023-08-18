@@ -76,7 +76,7 @@ def files_location_info(folder):
 
 def file_location_info(file):
     """
-    Import a gpx file
+    Return location info of the start of a gpx file
     :param file: filename
     :return: location info
     """
@@ -86,39 +86,38 @@ def file_location_info(file):
         gpx = gpxpy.parse(open(file, 'r'))
         lon = gpx.tracks[0].segments[0].points[0].longitude
         lat = gpx.tracks[0].segments[0].points[0].latitude
-
-        try:
-            geolocator = Nominatim(user_agent="geoapiExercises")
-            location = geolocator.reverse(str(lat) + "," + str(lon))
-        except:
-            print("Error: Geolocator not working!")
-            return ""
-
-        # return location.raw["display_name"]
-        interesting_keys = ('suburb', 'village', 'municipality', 'county', 'state')
-        s = ""
-        first = True
-        for key in interesting_keys:
-            if key in location.raw['address']:
-                if first:
-                    s = s + "(" + location.raw['address'][key]
-                    first = False
-                else:
-                    s = s + ", " + location.raw['address'][key]
-        s = s + ")"
-        return s
+        return "({})".format(
+            location_info(lat, lon, interesting_keys=('suburb', 'village', 'municipality', 'county', 'state')))
 
     else:
         return ""
 
 
-def location_info(lon, lat, info='road'):
-    geolocator = Nominatim(user_agent="geoapiExercises")
-    location = geolocator.reverse(str(lat) + "," + str(lon))
+def location_info(lat, lon, interesting_keys=('road', 'village')):
+    """
+    Return location info of a specific set of lat, lon coordinates.
+    :param lat:
+    :param lon:
+    :param interesting_keys:
+    :return:
+    """
     try:
-        return location.raw['address'][info]
-    finally:
-        return None
+        geolocator = Nominatim(user_agent="geoapiExercises")
+        location = geolocator.reverse(str(lat) + "," + str(lon))
+    except:
+        print("Error: cannot contact Geolocator server.")
+        return ""
+
+    try:
+        s = ""
+        for key in interesting_keys:
+            if key in location.raw['address']:
+                s = s + location.raw['address'][key] + ', '
+        return s[:-2]
+    except:
+        print("Error: cannot extract info from Geolocator response.")
+        return ""
+
 
 def save_last_opened(file):
     """
@@ -816,14 +815,15 @@ def plot_elevation(df, hover_index=None):
                           size=10,
                           color="Gray",
                       ),
-                      paper_bgcolor='rgba(0,0,0,0)',
+                      paper_bgcolor='Snow',
                       plot_bgcolor='rgba(0,0,0,0)',
                       )
 
     return fig
 
 
-def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="per", show_map=False):
+def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="per", show_location=False,
+             show_map=False):
     """
     Computes the gradient over a portion of one dataframe
     :param df: dataframe to operate on
@@ -941,8 +941,17 @@ def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="
     df_climb_gradient['c_dist_delta'] = df_climb_gradient.c_dist_geo2d_neg.diff().shift(-1)
     df_climb_gradient['c_gradient'] = df_climb_gradient['c_elev_delta'] / df_climb_gradient['c_dist_delta']
 
-    # This columns is redundant but is useful to cross check that the filter worked well
+    # This column is redundant but is useful to cross-check that the filter worked well
     # df_climb_gradient['steps'] = np.flip(steps)
+
+    # Find the highest elevation
+    highest_point = df_climb['elev'].max()
+    highest_point_id = df_climb['elev'].idxmax()
+
+    # Find start and end addresses
+    if show_location:
+        location_start = location_info(df_climb['lat'][0], df_climb['lon'][0])
+        location_end = location_info(df_climb['lat'].iloc[-1], df_climb['lon'].iloc[-1])
 
     # Generate figure
     fig = go.Figure()
@@ -961,8 +970,10 @@ def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="
                                  name='',
                                  showlegend=False),
                       )
-        annotation_per = "{:.0f}".format(np.trunc(g * 100)) + "{}".format(get_super("{:.0f}".format(np.trunc(((g * 100) % 1) * 10))))
-        annotation_deg = "{:.0f}".format(np.trunc(angle * 100)) + "{}".format(get_super("{:.0f}".format(np.trunc(((angle * 100) % 1) * 10))))
+        annotation_per = "{:.0f}".format(np.trunc(g * 100)) + "{}".format(
+            get_super("{:.0f}".format(np.trunc(((g * 100) % 1) * 10))))
+        annotation_deg = "{:.0f}".format(np.trunc(angle * 100)) + "{}".format(
+            get_super("{:.0f}".format(np.trunc(((angle * 100) % 1) * 10))))
         fig.add_annotation(x=np.mean(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']), yshift=10,
                            text=annotation_per if slope_unit == "per" else annotation_deg,
                            showarrow=False,
@@ -971,9 +982,33 @@ def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="
                                color="black",
                            ),
                            )
-        if i == 0:
-            fig.add_annotation(x=np.min(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']), yshift=40,
-                               text="{:.0f}m".format(np.min(portion['elev'])),
+
+        # Show the highest point
+        fig.add_annotation(x=df_climb['c_dist_geo2d_neg'][highest_point_id],
+                           y=df_climb['elev'][highest_point_id],
+                           yshift=80,
+                           text="\u26f0 {:.0f}m".format(df_climb['elev'][highest_point_id]),
+                           textangle=270,
+                           showarrow=False,
+                           arrowhead=0,
+                           font=dict(
+                               color="black",
+                               size=12,
+                           ),
+                           )
+
+        # Show location data
+        if 1:
+            if show_location:
+                text_start = "{} ({:.0f}m)".format(location_start, df_climb['elev'][0])
+                text_end = "{} ({:.0f}m)".format(location_end, df_climb['elev'][0])
+            else:
+                text_start = "{:.0f}m".format(df_climb['elev'].iloc[-1])
+                text_end = "{:.0f}m".format(df_climb['elev'].iloc[-1])
+            fig.add_annotation(x=df_climb['c_dist_geo2d_neg'][0],
+                               y=df_climb['elev'][0],
+                               yshift=80,
+                               text=text_start,
                                textangle=270,
                                showarrow=False,
                                arrowhead=0,
@@ -982,9 +1017,10 @@ def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="
                                    size=12,
                                ),
                                )
-        elif i == (len(df_climb_gradient) - 2):
-            fig.add_annotation(x=np.max(portion['c_dist_geo2d_neg']), y=np.max(portion['elev']), yshift=40,
-                               text="{:.0f}m".format(np.max(portion['elev'])),
+            fig.add_annotation(x=df_climb['c_dist_geo2d_neg'].iloc[-1],
+                               y=df_climb['elev'].iloc[-1],
+                               yshift=80,
+                               text=text_end,
                                textangle=270,
                                showarrow=False,
                                arrowhead=0,
@@ -1052,7 +1088,7 @@ def gradient(df, interval_unit="m", interval=None, resolution=1000, slope_unit="
                           size=10,
                           color="Gray",
                       ),
-                      paper_bgcolor='rgba(0,0,0,0)',
+                      paper_bgcolor='Snow',
                       plot_bgcolor='rgba(0,0,0,0)',
                       )
     fig.update_yaxes(gridcolor='#999999')
@@ -1329,7 +1365,7 @@ def estimate_power(df,
                           size=10,
                           color="Gray",
                       ),
-                      paper_bgcolor='rgba(0,0,0,0)',
+                      paper_bgcolor='Snow',
                       plot_bgcolor='rgba(0,0,0,0)',
                       )
     return fig
